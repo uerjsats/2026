@@ -1,0 +1,40 @@
+Atividade UERJ Sats
+
+Eletrônica:
+Reproduza a placa de computador de bordo no Kicad, os componentes necessários são:
+  - Gy-Neo6mv2 (GPS)
+  - DHT22
+  - Heltech ESP 32 Lora
+  - BMP280
+  - Gy-521
+  - Eeprom I2c
+
+OBS: Baixe as bibliotecas do Kicad no drive da Sats.
+
+Como entregar?
+
+Colocar a atividade na pasta do drive do seu subsistema (criar uma pasta com seu nome e atividade).
+
+Computador de bordo:
+Faça um código utilizando o Esp 32 para receber os dados de um Gy-Neo6mv2 (GPS) e um DHT22 e printe os dados no Esp 32 para ele confirmar que recebeu os dados. 
+
+Como entregar?
+
+Upe o código para a o repositório de capacitações no GitHub, link: 2026/Capacitações 26.1 at main · uerjsats/2026
+
+
+
+Estrutura:
+Recrie a estrutura do Bertola no solidworks.  
+
+Acesso: https://drive.google.com/file/d/17HSdYIrHE7hYNnu7x1akvzBa0K18cX91/view?usp=drive_link 
+
+
+Como entregar?
+
+Colocar a atividade na pasta do seu subsistema nesse link:
+2026 - Google Drive
+
+OBS: criar uma pasta com seu nome e atividade.
+
+Upe aqui os códigos das capcitações de 2026.1.
