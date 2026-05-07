@@ -75,14 +75,15 @@ void monitorConnection(){
             
             // 2. Lógica de Sincronização de Missão (Executa apenas UMA vez por boot do Heltec)
             if(firstConnectionEver){
-                Serial.println("[MASTER] Primeira conexão. Resetando servidor...");
+
                 updateDisplay("MISSAO", "STARTING...");
                 
                 client.println("R"); // Envia o comando de Reset
                 client.flush();
                 
                 firstConnectionEver = false; // Bloqueia para que reboots do ESP32 não apaguem os dados
-                delay(2000); // Latência necessária para o ESP32 limpar o SD e reindexar
+                delay(5000); // Latência necessária para o ESP32 limpar o SD e reindexar
+                Serial.println("[MASTER] Primeira conexão. Resetando servidor...");
             }
 
             conectedOnce = true;
@@ -102,7 +103,7 @@ bool receiveImage() {
     monitorConnection();
     if (!client.connected()) return false;
 
-    // 1. Solicitação
+    // 1. Solicitação pelo índice físico do anel
     client.printf("GET:%d\n", nextIndexToRequest); 
     client.flush();
 
@@ -120,61 +121,117 @@ bool receiveImage() {
     }
     
     String header = client.readStringUntil('\n');
-    if (!header.startsWith("START:")) return false;
+    if (!header.startsWith("START:")) {
+        Serial.println("[ERR] Header invalido. Fechando conexao.");
+        client.stop();
+        return false;
+    }
 
     // 3. Parsing do Header
     int partsFound = 0;
-    String parts[5];
+    String parts[6];
     int lastPos = 0;
-    for (int i = 0; i < header.length() && partsFound < 5; i++) {
+    for (int i = 0; i < header.length() && partsFound < 6; i++) {
         if (header[i] == ':' || i == header.length() - 1) {
             parts[partsFound++] = header.substring(lastPos, (i == header.length() - 1) ? i + 1 : i);
             lastPos = i + 1;
         }
     }
 
-    if (partsFound < 5) return false;
-
-    // Atribuição a variáveis globais ou membros de classe para uso posterior
-    currentImgSize = (size_t)parts[2].toInt();
-    currentTotalIndex = (uint32_t)parts[3].toInt();
-    currentMissionTime = parts[4].toFloat();
-
-    // 4. Lógica de "Foto Nova"
-    if (currentTotalIndex == lastTotalIndex && lastTotalIndex != 0xFFFFFFFF) {
-        updateDisplay("AGUARDANDO", "Nova captura...");
+    if (partsFound < 6) {
+        client.stop();
         return false;
     }
 
-    // 5. Download Binário
-    size_t totalRead = 0;
-    unsigned long downloadStart = millis();
-    while (totalRead < currentImgSize && (millis() - downloadStart < 10000)) {
-        if (client.available()) {
-            size_t n = client.read(fb_buf + totalRead, min((size_t)client.available(), currentImgSize - totalRead));
-            totalRead += n;
+    // Extração dos dados
+    String currentTipoFigura = parts[1];
+    currentImgSize = (size_t)parts[3].toInt();
+    currentTotalIndex = (uint32_t)parts[4].toInt();
+    currentMissionTime = parts[5].toFloat();
+
+    // 4. Lógica de "Foto Nova" com Prevenção de Underflow
+    bool isNewImage = (currentTotalIndex > lastTotalIndex) || (lastTotalIndex == 0xFFFFFFFF);
+
+    // Validação estrita de Hard Reset: garante que lastTotalIndex seja grande o suficiente 
+    // antes de realizar a subtração, prevenindo underflow.
+    if (lastTotalIndex != 0xFFFFFFFF && lastTotalIndex >= 100) {
+        if (currentTotalIndex < (lastTotalIndex - 100)) {
+            isNewImage = true; 
         }
-        yield();
     }
 
-    // 6. Validação de Integridade
-    if (totalRead == currentImgSize) {
-        client.readStringUntil('\n'); // Consome terminador
-
-        lastTotalIndex = currentTotalIndex;
+    if (!isNewImage) {
+        updateDisplay("AGUARDANDO", "Captura em andamento");
         
-        // Feedback Visual
+        // CORTA O FLUXO: Aborta o download imediatamente.
+        // Força a camada TCP do servidor ESP a descartar o payload não lido.
+        client.stop(); 
+        
+        // Retorna sem incrementar nextIndexToRequest, forçando o cliente a 
+        // realizar um novo polling no mesmo slot até que a câmera atualize o buffer.
+        return false;
+    }
+
+    // --- PROTOCOLO SERIAL: DEFINIÇÃO DE FRAMING ---
+    const uint8_t SYNC_START[] = {0xAA, 0xBB, 0xCC, 0xDD};
+    const uint8_t SYNC_END[]   = {0xEE, 0xFF};
+
+    // 5. Envio do LOG via Serial
+    String logPayload = "TIPO:" + currentTipoFigura + 
+                        ", ID:" + String(nextIndexToRequest) + 
+                        ", TOT:" + String(currentTotalIndex) + 
+                        ", T:" + String(currentMissionTime, 3);
+    
+    uint32_t logSize = logPayload.length();
+    
+    Serial.write(SYNC_START, 4);
+    Serial.write(0x01);
+    Serial.write((uint8_t*)&logSize, 4);
+    Serial.print(logPayload);
+    Serial.write(SYNC_END, 2);
+
+    // 6. Download Binário e Repasse Imediato via Serial
+    Serial.write(SYNC_START, 4);
+    Serial.write(0x02);
+    uint32_t imgSize32 = (uint32_t)currentImgSize;
+    Serial.write((uint8_t*)&imgSize32, 4);
+
+    size_t totalRead = 0;
+    uint8_t buffer[1024]; 
+    unsigned long downloadStart = millis();
+    
+    while (totalRead < currentImgSize && (millis() - downloadStart < 10000)) {
+        if (client.available()) {
+            size_t bytesToRead = min((size_t)client.available(), currentImgSize - totalRead);
+            if (bytesToRead > sizeof(buffer)) bytesToRead = sizeof(buffer);
+            
+            size_t n = client.read(buffer, bytesToRead);
+            Serial.write(buffer, n); 
+            
+            totalRead += n;
+            downloadStart = millis(); 
+        }
+        yield(); 
+    }
+
+    Serial.write(SYNC_END, 2);
+
+    // 7. Validação de Integridade e Avanço de Ponteiro
+    if (totalRead == currentImgSize) {
+        client.readStringUntil('\n'); // Consome terminador END_FRAME
+
+        lastTotalIndex = currentTotalIndex; // Sincroniza índice global absoluto
+        
         String linha1 = "ID:" + String(nextIndexToRequest) + " TOT:" + String(currentTotalIndex);
         String linha2 = "T:" + String(currentMissionTime, 2) + "s";
         updateDisplay(linha1.c_str(), linha2.c_str());
-        Serial.printf("[MISSAO] %s | %s\n", linha1.c_str(), linha2.c_str());
 
-        // Incremento do índice circular
+        // Apenas avança o ponteiro de leitura se o ciclo do slot atual for concluído com sucesso
         nextIndexToRequest = (nextIndexToRequest + 1) % 10;
         
-        return true; // Sucesso absoluto no download
+        return true; 
     } else {
-        Serial.println("[ERRO] Download incompleto.");
+        Serial.println("\n[ERRO] Download incompleto.");
         client.stop();
         return false;
     }

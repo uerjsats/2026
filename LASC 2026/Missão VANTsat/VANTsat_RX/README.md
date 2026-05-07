@@ -12,8 +12,10 @@ Orquestrador principal. Inicializa os subsistemas e executa o loop de requisiç�
 ### 2. Gestão de Rede e Transporte (`NetworkManager.h/.cpp`)
 Camada responsável pela conectividade e integridade dos dados.
 - **Resiliência de Rádio:** Implementa a reinicialização a frio do driver `esp_wifi` caso a conexão falhe.
-- **Protocolo de Imagem (Atualizado):** Implementa um fluxo baseado em requisição `GET:index`. Realiza o parsing de headers estruturados (`START:ID:SIZE:TOTAL:TIME`).
+- **Protocolo de Imagem (Atualizado):** Implementa um fluxo baseado em requisição `GET:index`. Realiza o parsing de headers estruturados contendo o tipo da figura geométrica (`START:TIPO:ID:SIZE:TOTAL:TIME`).
 - **Sincronização de Missão:** Ao estabelecer a primeira conexão bem-sucedida, o sistema envia o comando `R` ao servidor para resetar o armazenamento (SD) e iniciar a missão do zero.
+- **Validação de Foto Inédita e Underflow:** Verifica via índice global absoluto (`TotalIndex`) se a foto requisitada é nova. Implementa proteção contra *underflow* em casos de Hard Reset do transmissor. Se a foto for redundante, a conexão é abortada para descartar o payload e evitar travamentos.
+- **Protocolo de Framing Serial:** A própria camada de rede empacota e despacha os pacotes formatados de telemetria (LOG) e o payload binário da imagem com bytes de sincronização de início e fim (`SYNC_START` e `SYNC_END`).
 - **Buffer Estático:** Utiliza um buffer pré-alocado de 100KB (`fb_buf`) para evitar fragmentação de memória (Heap).
 
 ### 3. Ponte de Dados (`SerialBridge.h/.cpp`)
@@ -24,7 +26,7 @@ Módulo responsável pela interface com a estação de monitoramento em Python.
 ### 4. Interface de Hardware (`DisplayHandler.h/.cpp`)
 Abstração do display OLED SSD1306 via barramento I2C.
 - Gerencia o pino `Vext` para controle de energia.
-- Exibe o status da conexão e metadados da imagem atual (ID, Total e Tempo de Missão).
+- Exibe o status da conexão e metadados da imagem atual (Formato Identificado, ID, Total e Tempo de Missão).
 
 ## 🛠 Especificações Técnicas
 
@@ -35,7 +37,13 @@ Abstração do display OLED SSD1306 via barramento I2C.
 - **Protocolo de Aplicação:**
   - **Handshake Inicial:** Comando `R` enviado na primeira conexão.
   - **Request:** String formatada `GET:[index]\n`.
-  - **Header de Resposta:** String `START:[ID]:[Size]:[TotalIndex]:[MissionTime]\n`.
+  - **Header de Resposta:** String `START:[Tipo]:[ID]:[Size]:[TotalIndex]:[MissionTime]\n`.
+  - **Framing UART (TX):**
+    - `SYNC_START` (`0xAA 0xBB 0xCC 0xDD`)
+    - Identificador de Payload (`0x01` para String de Log, `0x02` para Binário JPEG)
+    - Tamanho (`uint32_t`)
+    - Payload
+    - `SYNC_END` (`0xEE 0xFF`)
   - **Payload:** Bytes brutos do JPEG (verificação de magic bytes `0xFF 0xD8`).
 
 ## 🔧 Configuração e Compilação
