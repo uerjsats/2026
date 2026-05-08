@@ -83,7 +83,7 @@ void setup() {
         
         s->set_exposure_ctrl(s, 1);      // 1 = Mantém automático para se adaptar
         s->set_ae_level(s, -2);          // FORÇA a exposição para o mínimo (-2 a 2)
-        Lu
+        
         s->set_gain_ctrl(s, 0);          // DESLIGA o ganho automático 
         s->set_agc_gain(s, 0);           // Define o ganho no mínimo manual (0 a 30)
         s->set_gainceiling(s, (gainceiling_t)0); // Garante que o teto do ganho seja o menor
