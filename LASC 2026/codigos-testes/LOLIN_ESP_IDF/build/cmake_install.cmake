@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF
+# Install script for directory: C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -39,7 +39,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/esp-idf/cmake_install.cmake")
+  include("C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/esp-idf/cmake_install.cmake")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)
@@ -50,5 +50,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

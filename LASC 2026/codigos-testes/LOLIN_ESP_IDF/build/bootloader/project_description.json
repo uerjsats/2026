@@ -4,8 +4,8 @@
     "project_version":    "v5.0.7-dirty",
     "project_path":       "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader/subproject",
     "idf_path":           "C:/Espressif/frameworks/esp-idf-v5.0.7",
-    "build_dir":          "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader",
-    "config_file":        "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/sdkconfig",
+    "build_dir":          "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader",
+    "config_file":        "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/sdkconfig",
     "config_defaults":    "",
     "bootloader_elf":     "",
     "app_elf":            "bootloader.elf",
@@ -53,7 +53,7 @@
             "priv_reqs": [ "micro-ecc", "spi_flash", "efuse", "esp_app_format", "hal" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/bootloader_support/libbootloader_support.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/bootloader_support/libbootloader_support.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_common.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_common_loader.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_clock_init.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/bootloader_flash/src/bootloader_flash.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_mem.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_random.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_random_esp32.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_utility.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/esp_image_format.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/flash_encrypt.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/secure_boot.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/flash_partitions.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/bootloader_flash/src/flash_qio_mode.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/bootloader_flash/src/bootloader_flash_config_esp32.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_efuse.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_init.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_clock_loader.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_console.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_console_loader.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/bootloader_panic.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/esp32/bootloader_sha.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/esp32/bootloader_soc.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader_support/src/esp32/bootloader_esp32.c" ],
             "include_dirs": [ "include", "bootloader_flash/include", "private_include" ]
         },
@@ -68,7 +68,7 @@
             "priv_reqs": [ "bootloader_support", "soc", "spi_flash" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/efuse/libefuse.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/efuse/libefuse.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/efuse/esp32/esp_efuse_table.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/efuse/esp32/esp_efuse_fields.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/efuse/esp32/esp_efuse_utility.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/efuse/src/esp_efuse_api.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/efuse/src/esp_efuse_fields.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/efuse/src/esp_efuse_utility.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/efuse/src/efuse_controller/keys/without_key_purposes/three_key_blocks/esp_efuse_api_key.c" ],
             "include_dirs": [ "include", "esp32/include" ]
         },
@@ -83,7 +83,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/esp_app_format/libesp_app_format.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/esp_app_format/libesp_app_format.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_app_format/esp_app_desc.c" ],
             "include_dirs": [ "include" ]
         },
@@ -98,7 +98,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/esp_common/libesp_common.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/esp_common/libesp_common.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_common/src/esp_err_to_name.c" ],
             "include_dirs": [ "include" ]
         },
@@ -113,7 +113,7 @@
             "priv_reqs": [ "efuse", "spi_flash", "bootloader_support", "esp_system" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/esp_hw_support/libesp_hw_support.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/esp_hw_support/libesp_hw_support.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_hw_support/cpu.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_hw_support/esp_memory_utils.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_hw_support/port/esp32/rtc_clk.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_hw_support/port/esp32/rtc_clk_init.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_hw_support/port/esp32/rtc_init.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_hw_support/port/esp32/rtc_pm.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_hw_support/port/esp32/rtc_sleep.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_hw_support/port/esp32/rtc_time.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_hw_support/port/esp32/chip_info.c" ],
             "include_dirs": [ "include", "include/soc", "include/soc/esp32" ]
         },
@@ -128,7 +128,7 @@
             "priv_reqs": [ "soc", "hal" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/esp_rom/libesp_rom.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/esp_rom/libesp_rom.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_rom/patches/esp_rom_crc.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_rom/patches/esp_rom_sys.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_rom/patches/esp_rom_uart.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_rom/patches/esp_rom_spiflash.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_rom/patches/esp_rom_regi2c.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_rom/patches/esp_rom_efuse.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_rom/patches/esp_rom_longjmp.S" ],
             "include_dirs": [ "include", "include/esp32", "esp32" ]
         },
@@ -143,7 +143,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/esp_system/libesp_system.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/esp_system/libesp_system.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/esp_system/esp_err.c" ],
             "include_dirs": []
         },
@@ -188,7 +188,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/hal/libhal.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/hal/libhal.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/hal/mpu_hal.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/hal/efuse_hal.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/hal/esp32/efuse_hal.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/hal/mmu_hal.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/hal/wdt_hal_iram.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/hal/esp32/cache_hal_esp32.c" ],
             "include_dirs": [ "esp32/include", "include", "platform_port/include" ]
         },
@@ -203,7 +203,7 @@
             "priv_reqs": [ "soc", "hal", "esp_hw_support" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/log/liblog.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/log/liblog.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/log/log.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/log/log_buffers.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/log/log_noos.c" ],
             "include_dirs": [ "include" ]
         },
@@ -218,7 +218,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/main/libmain.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/main/libmain.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader/subproject/main/bootloader_start.c" ],
             "include_dirs": []
         },
@@ -233,7 +233,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/micro-ecc/libmicro-ecc.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/micro-ecc/libmicro-ecc.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/bootloader/subproject/components/micro-ecc/uECC_verify_antifault.c" ],
             "include_dirs": [ ".", "micro-ecc" ]
         },
@@ -278,7 +278,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/soc/libsoc.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/soc/libsoc.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/lldesc.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/dport_access_common.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/adc_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/dac_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/dport_access.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/gpio_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/sdm_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/i2c_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/i2s_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/interrupts.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/lcd_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/ledc_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/mcpwm_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/pcnt_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/rmt_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/rtc_io_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/sdio_slave_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/sdmmc_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/spi_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/timer_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/touch_sensor_periph.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/soc/esp32/uart_periph.c" ],
             "include_dirs": [ "include" ]
         },
@@ -308,7 +308,7 @@
             "priv_reqs": [],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader/esp-idf/xtensa/libxtensa.a",
+            "file": "C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader/esp-idf/xtensa/libxtensa.a",
             "sources": [ "C:/Espressif/frameworks/esp-idf-v5.0.7/components/xtensa/eri.c", "C:/Espressif/frameworks/esp-idf-v5.0.7/components/xtensa/xt_trax.c" ],
             "include_dirs": [ "include", "esp32/include" ]
         }

@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/main
+# Install script for directory: C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/main
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

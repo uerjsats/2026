@@ -39,6 +39,6 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/esp-idf/esp_system/port/soc/esp32/cmake_install.cmake")
+  include("C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/esp-idf/esp_system/port/soc/esp32/cmake_install.cmake")
 endif()
 

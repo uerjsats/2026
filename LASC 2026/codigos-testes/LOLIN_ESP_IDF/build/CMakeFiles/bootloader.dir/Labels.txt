@@ -1,13 +1,13 @@
 # Target labels
  bootloader
 # Source files and their labels
-C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/CMakeFiles/bootloader
-C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/CMakeFiles/bootloader.rule
-C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/CMakeFiles/bootloader-complete.rule
-C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
-C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
-C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
-C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
-C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
-C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
-C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
+C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/CMakeFiles/bootloader
+C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/CMakeFiles/bootloader.rule
+C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/CMakeFiles/bootloader-complete.rule
+C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

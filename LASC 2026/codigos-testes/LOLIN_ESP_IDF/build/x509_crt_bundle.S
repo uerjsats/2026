@@ -1,4 +1,4 @@
-/* * Data converted from C:/Users/victo/OneDrive/Documentos/GitHub/Computador-De-Bordo-LASC-2026/LOLIN_ESP_IDF/build/esp-idf/mbedtls/x509_crt_bundle
+/* * Data converted from C:/Users/victo/OneDrive/Documentos/GitHub/2026/LASC 2026/codigos-testes/LOLIN_ESP_IDF/build/esp-idf/mbedtls/x509_crt_bundle
  */
 .data
 .section .rodata.embedded
