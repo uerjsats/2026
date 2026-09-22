@@ -9,12 +9,10 @@
 #include "esp_camera.h"
 
 #define MISSION_DIR "/missao"
-// Contador fica FORA de /missao para não ser apagado pelo resetMission()
+// Contador fica FORA de /missao para não ser apagado/confundido entre sessões
 #define MISSION_COUNTER_FILE "/missao_id.txt"
 
-const int MAX_CIRCULAR_INDEX = 20;
-const char* LOG_FILE = "/missao/data.txt";
-int circularIndex = 0;
+int missionPhotoIndex = 0;
 uint32_t totalIndex = 1;
 unsigned long missionStartTime = 0;
 
@@ -22,6 +20,16 @@ int lastSavedIndex = -1;
 size_t lastSavedSize = 0;
 
 String currentMissionDir = "";
+
+// ---------------------------------------------------------
+// Garante que a pasta base /missao existe
+// ---------------------------------------------------------
+void resetMission() {
+    if (!SD.exists(MISSION_DIR)) {
+        SD.mkdir(MISSION_DIR);
+        Serial.println("DONE:MISSION_DIR_CREATED");
+    }
+}
 
 // ---------------------------------------------------------
 // Cria/recupera a pasta numerada desta sessão (ex: /missao/missao_003)
@@ -73,7 +81,7 @@ void logADSBRecord(const ADSBRecord &record, int photoIndex) {
 }
 
 // ---------------------------------------------------------
-// Captura, identifica e salva a foto no SD (só quando é TRIANGULO)
+// Captura, identifica e salva a foto direto na pasta da missão atual (só quando é TRIANGULO)
 // ---------------------------------------------------------
 String captureAndSave() {
     camera_fb_t * old_fb = esp_camera_fb_get();
@@ -114,11 +122,13 @@ String captureAndSave() {
         return tipoFigura;
     }
 
-    if (!SD.exists(MISSION_DIR)) {
-        SD.mkdir(MISSION_DIR);
+    if (currentMissionDir.length() == 0) {
+        Serial.println("ERR:MISSION_FOLDER_NOT_READY");
+        free(jpeg_buf);
+        return tipoFigura;
     }
 
-    String path = String(MISSION_DIR) + "/" + String(circularIndex) + ".jpg";
+    String path = currentMissionDir + "/" + String(missionPhotoIndex) + ".jpg";
     File file = SD.open(path.c_str(), FILE_WRITE);
     size_t bytesSalvos = 0;
 
@@ -145,18 +155,19 @@ String captureAndSave() {
         file.close();
 
         double missionTimeSeconds = (millis() - missionStartTime) / 1000.0;
-        File log = SD.open(LOG_FILE, FILE_APPEND);
+        String logPath = currentMissionDir + "/data.txt";
+        File log = SD.open(logPath.c_str(), FILE_APPEND);
         if (log) {
             log.printf("TIPO:%s, CID:%d, TID:%u, Size:%zu, TS:%.3f\n",
-                        tipoFigura.c_str(), circularIndex, totalIndex, bytesSalvos, missionTimeSeconds);
+                        tipoFigura.c_str(), missionPhotoIndex, totalIndex, bytesSalvos, missionTimeSeconds);
             log.close();
         }
         Serial.printf("DONE:CAPTURED:%s (FORMA:%s) [JPEG SIZE: %zu]\n", path.c_str(), tipoFigura.c_str(), bytesSalvos);
 
-        lastSavedIndex = circularIndex;
+        lastSavedIndex = missionPhotoIndex;
         lastSavedSize = bytesSalvos;
 
-        circularIndex = (circularIndex + 1) % MAX_CIRCULAR_INDEX;
+        missionPhotoIndex++;
         totalIndex++;
     }
 
@@ -167,53 +178,15 @@ String captureAndSave() {
 }
 
 // ---------------------------------------------------------
-// Limpa fotos/log da missão anterior
-// ---------------------------------------------------------
-void resetMission() {
-    if (!SD.exists(MISSION_DIR)) {
-        SD.mkdir(MISSION_DIR);
-        Serial.println("DONE:MISSION_DIR_CREATED");
-    }
-
-    File dir = SD.open(MISSION_DIR);
-    if (!dir || !dir.isDirectory()) {
-        Serial.println("ERR:MISSION_DIR_NOT_FOUND_OR_INVALID");
-        return;
-    }
-    File file = dir.openNextFile();
-    while (file) {
-        if (!file.isDirectory()) {
-            String fileName = file.name();
-            int slashIndex = fileName.lastIndexOf('/');
-            if (slashIndex != -1) {
-                fileName = fileName.substring(slashIndex + 1);
-            }
-            String filePath = String(MISSION_DIR) + "/" + fileName;
-            file.close();
-            if (SD.remove(filePath)) {
-                Serial.printf("DONE:FILE_REMOVED:%s\n", filePath.c_str());
-            } else {
-                Serial.printf("ERR:FILE_REMOVE_FAIL:%s\n", filePath.c_str());
-            }
-        } else {
-            file.close();
-        }
-        file = dir.openNextFile();
-    }
-    dir.close();
-
-    File log = SD.open(LOG_FILE, FILE_WRITE);
-    if (log) {
-        log.close();
-    }
-    Serial.println("DONE:MISSION_RESET_COMPLETE");
-}
-
-// ---------------------------------------------------------
-// Envia a foto de um índice específico pro computador de bordo via TCP
+// Envia a foto de um índice específico (da missão atual) pro computador de bordo via TCP
 // ---------------------------------------------------------
 void sendImageToClient(WiFiClient &client, int index) {
-    String path = "/missao/" + String(index) + ".jpg";
+    if (currentMissionDir.length() == 0) {
+        client.println("ERR:MISSION_FOLDER_NOT_READY");
+        return;
+    }
+
+    String path = currentMissionDir + "/" + String(index) + ".jpg";
     File file = SD.open(path.c_str(), FILE_READ);
 
     if (!file) {
@@ -226,7 +199,8 @@ void sendImageToClient(WiFiClient &client, int index) {
     float retTS = 0.0;
     char retTipo[32] = "N/A";
 
-    File log = SD.open(LOG_FILE, FILE_READ);
+    String logPath = currentMissionDir + "/data.txt";
+    File log = SD.open(logPath.c_str(), FILE_READ);
     if (log) {
         String searchTag = "CID:" + String(index) + ",";
         while (log.available()) {
@@ -294,17 +268,6 @@ void sendImageToClient(WiFiClient &client, int index) {
         client.print("\nEND_FRAME\n");
         client.flush();
         Serial.printf("[OK] Foto %d enviada (%zu bytes) | Tipo: %s\n", index, size, retTipo);
-
-        // Move a foto do buffer circular pra pasta da missão, pra ela não ser
-        // sobrescrita depois e ficar arquivada junto do log de ADS-B
-        if (currentMissionDir.length() > 0) {
-            String archivedPath = currentMissionDir + "/" + String(index) + ".jpg";
-            if (SD.rename(path, archivedPath)) {
-                Serial.printf("[MISSAO] Foto arquivada em %s\n", archivedPath.c_str());
-            } else {
-                Serial.println("ERR:ARCHIVE_MOVE_FAIL");
-            }
-        }
     } else {
         Serial.printf("[FALHA] Transmissao da foto %d abortada pelo stack TCP.\n", index);
     }

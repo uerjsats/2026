@@ -45,17 +45,20 @@ WiFiUDP udp;
 const byte DNS_PORT = 53;
 DNSServer dnsServer;
 
-#define LOG_FILE "/missao/data.txt"
-
 void handleRoot() {
-    File root = SD.open("/missao");
+    if (currentMissionDir.length() == 0) {
+        webServer.send(500, "text/plain", "Erro: Pasta da missao ainda nao foi inicializada.");
+        return;
+    }
+
+    File root = SD.open(currentMissionDir);
     if (!root) {
-        webServer.send(500, "text/plain", "Erro: Falha ao abrir o diretório raiz do SD Card.");
+        webServer.send(500, "text/plain", "Erro: Falha ao abrir a pasta da missao no SD Card.");
         return;
     }
 
     String telemetryData = "";
-    File dataFile = SD.open(LOG_FILE, FILE_READ);
+    File dataFile = SD.open((currentMissionDir + "/data.txt").c_str(), FILE_READ);
     if (dataFile) {
         telemetryData = dataFile.readString();
         dataFile.close();
@@ -81,8 +84,8 @@ void handleRoot() {
     html += ".card-title { margin: 5px 10px; font-size: 11px; color: #aaa; text-align: center; font-family: 'Consolas', monospace; }";
     html += ".card img { width: 100%; height: auto; max-height: 200px; object-fit: cover; border-radius: 5px 5px 0 0; display: block; margin: 0 auto; }";
     html += ".telemetry-box { background: rgba(0,0,0,0.8); color: #00ffcc; padding: 8px; font-family: 'Consolas', monospace; font-size: 11px; border-radius: 0 0 5px 5px; word-break: break-all; border-top: 1px solid #333; text-align: center; }";
-    html += ".telemetry-box.adsb { color: #ffb454; }";
-    html += ".section-title { color: #aaa; font-family: 'Consolas', monospace; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; margin: 10px 0 20px; text-align: center; }";
+    html += ".status-panel { background: rgba(30,30,30,0.85); border: 1px solid rgba(255,180,84,0.35); border-radius: 8px; padding: 12px 20px; margin: 0 0 30px; max-width: 600px; width: 90%; text-align: center; color: #ffb454; font-family: 'Consolas', monospace; font-size: 13px; }";
+    html += ".status-panel.empty { color: #777; border-color: #333; }";
 
     html += "@media (max-width: 768px) {";
     html += "  .title-box { font-size: 18px; padding: 12px 20px; width: 90%; }";
@@ -98,6 +101,19 @@ void handleRoot() {
     html += "<header class='header-container'>";
     html += "<h2 class='title-box'>Missao Maverick - Imagens e Dados</h2>";
     html += "</header>";
+
+    // Última mensagem ADS-B enviada (broadcast UDP), direto da memória —
+    // não depende de ler/parsear nenhum arquivo .txt
+    if (adsbDataAvailable) {
+        String adsbMsg = "ADS-B: " + String(lastADSBRecord.callsign) + " (" + String(lastADSBRecord.icao24) + ") | "
+                        + "Lat:" + String(lastADSBRecord.latitude, 4) + " Lon:" + String(lastADSBRecord.longitude, 4) + " | "
+                        + "Alt:" + String(lastADSBRecord.altitudeFt) + "ft GS:" + String(lastADSBRecord.groundSpeedKt) + "kt "
+                        + "Track:" + String(lastADSBRecord.trackDeg) + " VRate:" + String(lastADSBRecord.verticalRateFpm) + "fpm "
+                        + "Squawk:" + String(lastADSBRecord.squawk);
+        html += "<div class='status-panel'>" + adsbMsg + "</div>";
+    } else {
+        html += "<div class='status-panel empty'>Nenhum ADS-B enviado ainda nesta sessao.</div>";
+    }
 
     html += "<div class=\"gallery\">";
 
@@ -141,10 +157,10 @@ void handleRoot() {
                     }
                 }
 
-                String fullPath = "/missao/" + fileName;
+                String fullPath = currentMissionDir + "/" + fileName;
 
                 html += "<div class='card'>";
-                html += "<p class='card-title'>/" + fileName + "</p>";
+                html += "<p class='card-title'>" + fullPath + "</p>";
                 html += "<a href='/download?file=" + fullPath + "' target='_blank'>";
                 html += "<img src='/download?file=" + fullPath + "' alt='" + fileName + "'>";
                 html += "</a>";
@@ -156,75 +172,7 @@ void handleRoot() {
     }
 
     if (!foundImages) {
-        html += "<p>Nenhuma imagem encontrada no diretório raiz.</p>";
-    }
-
-    html += "</div>";
-
-    // --- Fotos já enviadas via TCP nesta sessão, com os dados de ADS-B associados ---
-    html += "<h3 class='section-title'>Fotos Enviadas (" + currentMissionDir + ") — Dados ADS-B</h3>";
-    html += "<div class=\"gallery\">";
-
-    bool foundSent = false;
-
-    if (currentMissionDir.length() > 0) {
-        String adsbData = "";
-        File adsbFile = SD.open((currentMissionDir + "/adsb.txt").c_str(), FILE_READ);
-        if (adsbFile) {
-            adsbData = adsbFile.readString();
-            adsbFile.close();
-        }
-
-        File sentDir = SD.open(currentMissionDir);
-        if (sentDir && sentDir.isDirectory()) {
-            File sfile = sentDir.openNextFile();
-            while (sfile) {
-                if (!sfile.isDirectory()) {
-                    String fileName = String(sfile.name());
-                    if (fileName.startsWith("/")) {
-                        fileName = fileName.substring(fileName.lastIndexOf('/') + 1);
-                    }
-                    String lowerName = fileName;
-                    lowerName.toLowerCase();
-
-                    if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
-                        foundSent = true;
-
-                        String baseName = fileName;
-                        baseName.replace(".jpg", "");
-                        baseName.replace(".jpeg", "");
-
-                        String searchTag = "CID:" + baseName + ",";
-                        String adsbInfo = "ADS-B não encontrado para esta foto.";
-                        if (adsbData.length() > 0) {
-                            int startIndex = adsbData.indexOf(searchTag);
-                            if (startIndex != -1) {
-                                int lineEnd = adsbData.indexOf('\n', startIndex);
-                                if (lineEnd == -1) lineEnd = adsbData.length();
-                                adsbInfo = adsbData.substring(startIndex, lineEnd);
-                                adsbInfo.trim();
-                            }
-                        }
-
-                        String fullPath = currentMissionDir + "/" + fileName;
-
-                        html += "<div class='card'>";
-                        html += "<p class='card-title'>" + fullPath + "</p>";
-                        html += "<a href='/download?file=" + fullPath + "' target='_blank'>";
-                        html += "<img src='/download?file=" + fullPath + "' alt='" + fileName + "'>";
-                        html += "</a>";
-                        html += "<div class='telemetry-box adsb'>" + adsbInfo + "</div>";
-                        html += "</div>";
-                    }
-                }
-                sfile = sentDir.openNextFile();
-            }
-            sentDir.close();
-        }
-    }
-
-    if (!foundSent) {
-        html += "<p>Nenhuma foto enviada ainda nesta sessão.</p>";
+        html += "<p>Nenhuma foto capturada ainda nesta sessão.</p>";
     }
 
     html += "</div>";

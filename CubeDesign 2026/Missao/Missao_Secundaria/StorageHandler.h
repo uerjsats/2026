@@ -14,9 +14,7 @@
 #include <WiFi.h>
 #include "ADSBSimulator.h"
 
-extern const int MAX_CIRCULAR_INDEX;
-extern const char* LOG_FILE;
-extern int circularIndex;
+extern int missionPhotoIndex;
 extern uint32_t totalIndex;
 extern unsigned long missionStartTime;
 
@@ -24,19 +22,19 @@ extern unsigned long missionStartTime;
 extern int lastSavedIndex;
 extern size_t lastSavedSize;
 
-// Pasta desta sessão de missão (ex: /missao/missao_003), onde ficam as fotos
-// já enviadas via TCP + o log de ADS-B. Sobrevive a reinícios (fora do que
-// resetMission() limpa).
+// Pasta desta sessão de missão (ex: /missao/missao_003). É onde as fotos e o
+// log de telemetria são salvos diretamente — sobrevive a reinícios, já que
+// cada sessão ganha sua própria pasta.
 extern String currentMissionDir;
 
-// Captura um frame, roda a identificação de forma e, se for TRIANGULO, salva o JPEG no SD
+// Captura um frame, roda a identificação de forma e, se for TRIANGULO, salva o
+// JPEG direto na pasta da missão atual (currentMissionDir)
 String captureAndSave();
 
 // Envia a foto de um índice específico via TCP (protocolo START:.../END_FRAME) — igual ao original
-// Ao concluir com sucesso, move a foto para a pasta da missão atual (currentMissionDir).
 void sendImageToClient(WiFiClient &client, int index);
 
-// Limpa as fotos/log da missão anterior (buffer circular de /missao)
+// Cria a pasta base /missao (se não existir ainda)
 void resetMission();
 
 // Cria/recupera a pasta numerada desta sessão de missão (contador persistente no SD,
