@@ -70,20 +70,24 @@ void findContour(uint8_t* buf, int w, int h) {
         amostras++;
     }
     int brilhoMedio = somaBrilho / amostras;
-    int thrBusca = (brilhoMedio * 0.5); 
+    int thrBusca = (brilhoMedio * 0.5);
     int thrSeguimento = (brilhoMedio * 0.7);
+    Serial.printf("[VISION] brilhoMedio=%d thrBusca=%d thrSeguimento=%d\n", brilhoMedio, thrBusca, thrSeguimento);
 
     // Busca o primeiro ponto escuro (objeto)
     for (int y = h/4; y < (3*h)/4 && start.x == -1; y++) {
         for (int x = w/4; x < (3*w)/4; x++) {
-            if (buf[y * w + x] < thrBusca) { 
-                start = {x, y}; 
-                break; 
+            if (buf[y * w + x] < thrBusca) {
+                start = {x, y};
+                break;
             }
         }
     }
-    
-    if (start.x == -1) return;
+
+    if (start.x == -1) {
+        Serial.println("[VISION] Nenhum pixel escuro encontrado na regiao central (metade do meio do frame). O algoritmo so detecta objeto ESCURO sobre fundo CLARO.");
+        return;
+    }
 
     Point curr = start;
     Point prev = {start.x - 1, start.y};
@@ -110,6 +114,7 @@ void findContour(uint8_t* buf, int w, int h) {
         }
         if (!found || (abs(curr.x - start.x) <= 1 && abs(curr.y - start.y) <= 1 && i > 10)) break;
     }
+    Serial.printf("[VISION] Contorno rastreado: %d pontos (inicio em %d,%d) — precisa de >300 para tentar classificar\n", contourSize, start.x, start.y);
 }
 // --- 1. FUNÇÃO DRAWLINE (Algoritmo de Bresenham) ---
 // NÃO MUDE NADA AQUI!
@@ -219,7 +224,10 @@ void calculateCentroid(int *cX, int *cY) {
 // --- 5. IDENTIFICAÇÃO DE FORMA ---
 // NÃO MUDE NADA AQUI!
 String identifyShape(int cX, int cY, int errX, int errY) {
-    if (vertexCount < 3) return "DESCONHECIDO";
+    if (vertexCount < 3) {
+        Serial.printf("[VISION] vertexCount=%d (< 3) apos simplificacao RDP — contorno nao virou um poligono valido\n", vertexCount);
+        return "DESCONHECIDO";
+    }
 
     // 1. Encontrar a aresta da base 
     // Procura a aresta com o maior valor médio de Y (mais abaixo na imagem)
@@ -267,6 +275,7 @@ String identifyShape(int cX, int cY, int errX, int errY) {
     };
     double angle1 = calcAngle(v1x, v1y, v2x, v2y);
     double angle2 = calcAngle(v3x, v3y, v4x, v4y);
+    Serial.printf("[VISION] vertices=%d angulo1=%.1f angulo2=%.1f (triangulo se ambos <80, quadrado se ambos entre 80-100)\n", vertexCount, angle1, angle2);
 
     // 4. Classificação com tolerância para distorção de perspectiva/ruído
     if (angle1 >= 80.0 && angle1 <= 100.0 && angle2 >= 80.0 && angle2 <= 100.0) {

@@ -113,6 +113,7 @@ void setup() {
     }
 
     resetMission();
+    initMissionFolder();
     missionStartTime = millis();
     setupWiFi();
 
@@ -137,5 +138,6 @@ void loop() {
         lastADSBRecord = record;
         adsbDataAvailable = true;
         sendADSB(record, lastSavedIndex, lastSavedSize);
+        logADSBRecord(record, lastSavedIndex);
     }
 }

@@ -64,50 +64,41 @@ void handleRoot() {
     String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">";
     html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">";
     html += "<title>Missão Maverick - Resultados</title>";
-    
+
+    // Página 100% CSS, sem depender de nenhuma imagem de logo/fundo no SD
     html += "<style>";
-    html += "body { font-family: sans-serif; background: #121212 url('/download?file=/wall.jpg') no-repeat center center fixed; background-size: contain; color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";    
-    
-    html += ".header-container { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; justify-items: center; margin-bottom: 40px; width: 100%; max-width: 1200px; gap: 20px; }";
-    
-    html += ".title-box { background: rgba(30,30,30,0.85); backdrop-filter: blur(4px); border: 1px solid #333; border-radius: 8px; padding: 15px 30px; margin: 0; width: fit-content; text-align: center; color: #00ffcc; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 12px rgba(0, 255, 204, 0.9); }";
-    
-    html += ".nav-logo { height: 200px; width: auto; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6)); }";
-    
-    html += ".gallery { display: grid; grid-template-columns: repeat(4, fit-content(100%)); justify-content: center; gap: 20px; margin-bottom: 120px; max-width: 95%; box-sizing: border-box; }";
-    
-    html += ".card { background: rgba(30,30,30,0.85); backdrop-filter: blur(4px); border: 1px solid rgba(0, 255, 204, 0.25); border-radius: 5px; display: flex; flex-direction: column; width: 260px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 255, 204, 0.1); transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease; }";
+    html += "body { font-family: sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";
+
+    html += ".header-container { margin-bottom: 40px; width: 100%; max-width: 1200px; text-align: center; }";
+
+    html += ".title-box { background: rgba(30,30,30,0.85); border: 1px solid #333; border-radius: 8px; padding: 15px 30px; margin: 0 auto; width: fit-content; text-align: center; color: #00ffcc; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 12px rgba(0, 255, 204, 0.9); }";
+
+    html += ".gallery { display: grid; grid-template-columns: repeat(4, fit-content(100%)); justify-content: center; gap: 20px; margin-bottom: 60px; max-width: 95%; box-sizing: border-box; }";
+
+    html += ".card { background: rgba(30,30,30,0.85); border: 1px solid rgba(0, 255, 204, 0.25); border-radius: 5px; display: flex; flex-direction: column; width: 260px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 255, 204, 0.1); transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease; }";
     html += ".card:hover { transform: translateY(-12px); box-shadow: 0 16px 32px rgba(0, 255, 204, 0.4); border-color: rgba(0, 255, 204, 0.8); cursor: pointer; }";
-    
+
     html += ".card-title { margin: 5px 10px; font-size: 11px; color: #aaa; text-align: center; font-family: 'Consolas', monospace; }";
     html += ".card img { width: 100%; height: auto; max-height: 200px; object-fit: cover; border-radius: 5px 5px 0 0; display: block; margin: 0 auto; }";
     html += ".telemetry-box { background: rgba(0,0,0,0.8); color: #00ffcc; padding: 8px; font-family: 'Consolas', monospace; font-size: 11px; border-radius: 0 0 5px 5px; word-break: break-all; border-top: 1px solid #333; text-align: center; }";
-    
-    html += ".logo-container-right { position: fixed; bottom: 20px; right: 20px; display: flex; align-items: center; justify-content: center; z-index: 1000; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; backdrop-filter: blur(3px); }";
-    
-    html += ".logo-side { width: 130px; height: 130px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6)); }";
-    
+    html += ".telemetry-box.adsb { color: #ffb454; }";
+    html += ".section-title { color: #aaa; font-family: 'Consolas', monospace; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; margin: 10px 0 20px; text-align: center; }";
+
     html += "@media (max-width: 768px) {";
-    html += "  .header-container { display: flex; flex-direction: column; gap: 15px; }";
-    html += "  .nav-logo { height: 130px; }";
     html += "  .title-box { font-size: 18px; padding: 12px 20px; width: 90%; }";
-    html += "  .gallery { grid-template-columns: 1fr; max-width: 100%; }"; 
+    html += "  .gallery { grid-template-columns: 1fr; max-width: 100%; }";
     html += "  .card { width: 100%; max-width: 320px; }";
     html += "  .card img { max-height: none; }";
-    html += "  .logo-container-right { bottom: 10px; right: 10px; padding: 5px; }"; 
-    html += "  .logo-side { width: 90px; height: 90px; }";
     html += "}";
     html += "</style>";
-    
+
     html += "</head><body>";
-    
-    // Cabeçalho 
+
+    // Cabeçalho (sem logos: nenhum arquivo de imagem obrigatório no SD)
     html += "<header class='header-container'>";
-    html += "<img src='/download?file=/atlas.png' class='nav-logo' alt='Logo Atlas'>";
-    html += "<h2 class='title-box'>Missão Atlas - Imagens e Dados</h2>";
-    html += "<img src='/download?file=/solo.png' class='nav-logo' alt='Logo LASC Solo'>";
+    html += "<h2 class='title-box'>Missao Maverick - Imagens e Dados</h2>";
     html += "</header>";
-    
+
     html += "<div class=\"gallery\">";
 
     File file = root.openNextFile();
@@ -124,11 +115,8 @@ void handleRoot() {
             String lowerName = fileName;
             lowerName.toLowerCase();
 
-            if ((lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg") || lowerName.endsWith(".png")) && 
-                lowerName != "wall.png" && lowerName != "lasc.png" && 
-                lowerName != "atlas.png" && lowerName != "solo.png" && 
-                lowerName != "sats.png" && lowerName != "uerj.png" && lowerName != "nome.png") {
-                
+            if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg") || lowerName.endsWith(".png")) {
+
                 foundImages = true;
                 
                 String baseName = fileName;
@@ -170,15 +158,79 @@ void handleRoot() {
     if (!foundImages) {
         html += "<p>Nenhuma imagem encontrada no diretório raiz.</p>";
     }
-    
+
     html += "</div>";
 
-    html += "<div class='logo-container-right'>";
-    html += "<img src='/download?file=/sats.png' class='logo-side' alt='Logo SATS'>";
+    // --- Fotos já enviadas via TCP nesta sessão, com os dados de ADS-B associados ---
+    html += "<h3 class='section-title'>Fotos Enviadas (" + currentMissionDir + ") — Dados ADS-B</h3>";
+    html += "<div class=\"gallery\">";
+
+    bool foundSent = false;
+
+    if (currentMissionDir.length() > 0) {
+        String adsbData = "";
+        File adsbFile = SD.open((currentMissionDir + "/adsb.txt").c_str(), FILE_READ);
+        if (adsbFile) {
+            adsbData = adsbFile.readString();
+            adsbFile.close();
+        }
+
+        File sentDir = SD.open(currentMissionDir);
+        if (sentDir && sentDir.isDirectory()) {
+            File sfile = sentDir.openNextFile();
+            while (sfile) {
+                if (!sfile.isDirectory()) {
+                    String fileName = String(sfile.name());
+                    if (fileName.startsWith("/")) {
+                        fileName = fileName.substring(fileName.lastIndexOf('/') + 1);
+                    }
+                    String lowerName = fileName;
+                    lowerName.toLowerCase();
+
+                    if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
+                        foundSent = true;
+
+                        String baseName = fileName;
+                        baseName.replace(".jpg", "");
+                        baseName.replace(".jpeg", "");
+
+                        String searchTag = "CID:" + baseName + ",";
+                        String adsbInfo = "ADS-B não encontrado para esta foto.";
+                        if (adsbData.length() > 0) {
+                            int startIndex = adsbData.indexOf(searchTag);
+                            if (startIndex != -1) {
+                                int lineEnd = adsbData.indexOf('\n', startIndex);
+                                if (lineEnd == -1) lineEnd = adsbData.length();
+                                adsbInfo = adsbData.substring(startIndex, lineEnd);
+                                adsbInfo.trim();
+                            }
+                        }
+
+                        String fullPath = currentMissionDir + "/" + fileName;
+
+                        html += "<div class='card'>";
+                        html += "<p class='card-title'>" + fullPath + "</p>";
+                        html += "<a href='/download?file=" + fullPath + "' target='_blank'>";
+                        html += "<img src='/download?file=" + fullPath + "' alt='" + fileName + "'>";
+                        html += "</a>";
+                        html += "<div class='telemetry-box adsb'>" + adsbInfo + "</div>";
+                        html += "</div>";
+                    }
+                }
+                sfile = sentDir.openNextFile();
+            }
+            sentDir.close();
+        }
+    }
+
+    if (!foundSent) {
+        html += "<p>Nenhuma foto enviada ainda nesta sessão.</p>";
+    }
+
     html += "</div>";
-    
+
     html += "</body></html>";
-    
+
     root.close();
     webServer.send(200, "text/html", html);
 }

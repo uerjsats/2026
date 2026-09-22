@@ -9,6 +9,8 @@
 #include "esp_camera.h"
 
 #define MISSION_DIR "/missao"
+// Contador fica FORA de /missao para não ser apagado pelo resetMission()
+#define MISSION_COUNTER_FILE "/missao_id.txt"
 
 const int MAX_CIRCULAR_INDEX = 20;
 const char* LOG_FILE = "/missao/data.txt";
@@ -18,6 +20,57 @@ unsigned long missionStartTime = 0;
 
 int lastSavedIndex = -1;
 size_t lastSavedSize = 0;
+
+String currentMissionDir = "";
+
+// ---------------------------------------------------------
+// Cria/recupera a pasta numerada desta sessão (ex: /missao/missao_003)
+// ---------------------------------------------------------
+void initMissionFolder() {
+    int missionId = 1;
+    File counterFile = SD.open(MISSION_COUNTER_FILE, FILE_READ);
+    if (counterFile) {
+        missionId = counterFile.parseInt();
+        counterFile.close();
+        if (missionId < 1) missionId = 1;
+    }
+
+    char idStr[6];
+    snprintf(idStr, sizeof(idStr), "%03d", missionId);
+    currentMissionDir = String(MISSION_DIR) + "/missao_" + idStr;
+
+    if (!SD.exists(currentMissionDir)) {
+        SD.mkdir(currentMissionDir);
+    }
+
+    File writeCounter = SD.open(MISSION_COUNTER_FILE, FILE_WRITE);
+    if (writeCounter) {
+        writeCounter.print(missionId + 1);
+        writeCounter.close();
+    } else {
+        Serial.println("ERR:MISSION_COUNTER_WRITE_FAIL");
+    }
+
+    Serial.printf("[MISSAO] Pasta desta sessao: %s\n", currentMissionDir.c_str());
+}
+
+// ---------------------------------------------------------
+// Grava (append) um registro ADS-B enviado no adsb.txt da missão atual
+// ---------------------------------------------------------
+void logADSBRecord(const ADSBRecord &record, int photoIndex) {
+    if (currentMissionDir.length() == 0) return;
+
+    String path = currentMissionDir + "/adsb.txt";
+    File log = SD.open(path.c_str(), FILE_APPEND);
+    if (!log) {
+        Serial.println("ERR:ADSB_LOG_WRITE_FAIL");
+        return;
+    }
+    log.printf("CID:%d, ICAO24:%s, CALLSIGN:%s, LAT:%.4f, LON:%.4f, ALT_FT:%d, GS_KT:%d, TRACK_DEG:%d, VRATE_FPM:%d, SQUAWK:%s\n",
+               photoIndex, record.icao24, record.callsign, record.latitude, record.longitude,
+               record.altitudeFt, record.groundSpeedKt, record.trackDeg, record.verticalRateFpm, record.squawk);
+    log.close();
+}
 
 // ---------------------------------------------------------
 // Captura, identifica e salva a foto no SD (só quando é TRIANGULO)
@@ -43,6 +96,7 @@ String captureAndSave() {
         calculateCentroid(&centroX, &centroY);
         tipoFigura = identifyShape(centroX, centroY, centroX - 160, centroY - 120);
     }
+    Serial.printf("[VISION] Resultado do frame: %s (contourSize=%d)\n", tipoFigura.c_str(), contourSize);
 
     if (tipoFigura != "TRIANGULO") {
         esp_camera_fb_return(fb);
@@ -241,6 +295,17 @@ void sendImageToClient(WiFiClient &client, int index) {
         client.print("\nEND_FRAME\n");
         client.flush();
         Serial.printf("[OK] Foto %d enviada (%zu bytes) | Tipo: %s\n", index, size, retTipo);
+
+        // Move a foto do buffer circular pra pasta da missão, pra ela não ser
+        // sobrescrita depois e ficar arquivada junto do log de ADS-B
+        if (currentMissionDir.length() > 0) {
+            String archivedPath = currentMissionDir + "/" + String(index) + ".jpg";
+            if (SD.rename(path, archivedPath)) {
+                Serial.printf("[MISSAO] Foto arquivada em %s\n", archivedPath.c_str());
+            } else {
+                Serial.println("ERR:ARCHIVE_MOVE_FAIL");
+            }
+        }
     } else {
         Serial.printf("[FALHA] Transmissao da foto %d abortada pelo stack TCP.\n", index);
     }
