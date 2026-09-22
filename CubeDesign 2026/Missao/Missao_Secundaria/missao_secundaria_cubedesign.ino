@@ -134,6 +134,8 @@ void loop() {
 
     if (detected == "TRIANGULO") {
         ADSBRecord record = getRandomADSB();
+        lastADSBRecord = record;
+        adsbDataAvailable = true;
         sendADSB(record, lastSavedIndex, lastSavedSize);
     }
 }

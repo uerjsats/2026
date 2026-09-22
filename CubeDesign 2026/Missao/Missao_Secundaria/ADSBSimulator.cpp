@@ -15,6 +15,9 @@ ADSBRecord adsbDatabase[5] = {
     {"33CC99", "UAL1890", -23.0000f, -43.1000f, 32000, 430, 315, -300, "1200"}
 };
 
+ADSBRecord lastADSBRecord = adsbDatabase[0];
+bool adsbDataAvailable = false;
+
 ADSBRecord getRandomADSB() {
     // esp_random() é o gerador de hardware do ESP32, dispensa randomSeed()
     int index = esp_random() % 5;

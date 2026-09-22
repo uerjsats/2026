@@ -22,6 +22,10 @@ struct ADSBRecord {
 
 extern ADSBRecord adsbDatabase[5];
 
+// Último registro ADS-B sorteado/enviado, exposto para o dashboard web
+extern ADSBRecord lastADSBRecord;
+extern bool adsbDataAvailable;
+
 // Sorteia um dos 5 registros fictícios
 ADSBRecord getRandomADSB();
 
