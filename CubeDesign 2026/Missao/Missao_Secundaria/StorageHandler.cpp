@@ -117,6 +117,11 @@ String captureAndSave() {
 // Limpa fotos/log da missão anterior
 // ---------------------------------------------------------
 void resetMission() {
+    if (!SD.exists(MISSION_DIR)) {
+        SD.mkdir(MISSION_DIR);
+        Serial.println("DONE:MISSION_DIR_CREATED");
+    }
+
     File dir = SD.open(MISSION_DIR);
     if (!dir || !dir.isDirectory()) {
         Serial.println("ERR:MISSION_DIR_NOT_FOUND_OR_INVALID");
