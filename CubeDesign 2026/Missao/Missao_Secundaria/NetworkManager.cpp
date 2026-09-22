@@ -28,7 +28,7 @@
 #include "StorageHandler.h"
 #include "Arduino.h"
 
-const char* ssid = "VANTsat_AP";
+const char* ssid = "AMARAL_I";
 const char* password = "uerjsats123";
 const int port = 8888;
 const int adsbPort = 4444;
@@ -63,7 +63,7 @@ void handleRoot() {
 
     String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">";
     html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">";
-    html += "<title>Missão Atlas - Resultados</title>";
+    html += "<title>Missão Maverick - Resultados</title>";
     
     html += "<style>";
     html += "body { font-family: sans-serif; background: #121212 url('/download?file=/wall.jpg') no-repeat center center fixed; background-size: contain; color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }";    
