@@ -1,7 +1,8 @@
 # Missão Secundária — CubeDesign 2026
 
 Firmware para ESP32-S3 (XIAO Sense) que detecta triângulos por visão computacional,
-salva a foto no cartão SD e simula um registro ADS-B associado à detecção.
+salva a foto no cartão SD, simula um registro ADS-B associado à detecção e expõe
+tudo isso (fotos + telemetria + ADS-B) num painel web servido pelo próprio ESP32.
 
 > Base: projeto **VANTsat** — Equipe UERJsats (Missão Atlas, LASC 2026).
 > Reaproveita o `VisionSystem` original (detecção geométrica) e o fluxo de
@@ -15,6 +16,7 @@ salva a foto no cartão SD e simula um registro ADS-B associado à detecção.
 - [Módulos](#módulos)
 - [Hardware](#hardware)
 - [Rede](#rede)
+- [Painel web](#painel-web)
 - [Como compilar e gravar](#como-compilar-e-gravar)
 - [Estrutura de dados no SD](#estrutura-de-dados-no-sd)
 - [Limitações conhecidas](#limitações-conhecidas)
@@ -35,27 +37,27 @@ VisionSystem ──► identifica forma (contorno + RDP + ângulos)
      └── TRIANGULO
            │
            ▼
-     StorageHandler ──► converte p/ JPEG e salva em /missao/<index>.jpg no SD
+     StorageHandler ──► converte p/ JPEG e salva em /missao/<index>.jpg (buffer circular)
            │
            ▼
      ADSBSimulator ──► sorteia 1 de 5 aeronaves fictícias
            │
            ▼
-     NetworkManager ──► broadcast UDP com o JSON do ADS-B (inclui o índice da foto)
+     NetworkManager ──► broadcast UDP do ADS-B + grava o registro no log da missão
 ```
 
-Em paralelo, o `NetworkManager` também sobe um servidor TCP (porta 8888) que
-atende pedidos `GET:<index>` para o "computador de bordo" puxar uma foto
-específica, e um servidor HTTP (porta 80) com uma galeria web das fotos salvas.
+Quando o "computador de bordo" baixa uma foto via TCP (`GET:<index>`), o
+`StorageHandler` **move** o arquivo do buffer circular para a pasta da sessão de
+missão atual — assim ela não é sobrescrita depois nem apagada num reinício.
 
 ## Módulos
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `missao_secundaria_cubedesign.ino` | `setup()`/`loop()`: inicializa câmera, SD, PSRAM e WiFi; orquestra captura → detecção → broadcast |
+| `missao_secundaria_cubedesign.ino` | `setup()`/`loop()`: inicializa câmera, SD, PSRAM e WiFi; orquestra captura → detecção → broadcast → log |
 | `VisionSystem.h/.cpp` | Detecção de contorno (Moore-Neighbor), simplificação (Douglas-Peucker) e classificação geométrica por ângulos |
-| `StorageHandler.h/.cpp` | Captura de frame, conversão para JPEG, gravação/leitura no SD e log de telemetria |
-| `NetworkManager.h/.cpp` | Access Point WiFi, broadcast UDP do ADS-B, servidor TCP de fotos e servidor HTTP (galeria web) |
+| `StorageHandler.h/.cpp` | Captura de frame, conversão para JPEG, buffer circular no SD, pasta/contador de missão, arquivamento de fotos enviadas e log de ADS-B |
+| `NetworkManager.h/.cpp` | Access Point WiFi, DNS (captive portal simples), broadcast UDP do ADS-B, servidor TCP de fotos e servidor HTTP (painel web) |
 | `ADSBSimulator.h/.cpp` | Base fixa de 5 aeronaves fictícias e serialização do payload JSON |
 
 ## Hardware
@@ -91,15 +93,16 @@ O ESP32 sobe seu próprio Access Point — não há acesso à internet nessa red
 
 | Parâmetro | Valor |
 |---|---|
-| SSID | `VANTsat_AP` |
+| SSID | `AMARAL_I` |
 | Senha | `uerjsats123` |
 | IP do AP | `192.168.4.1` |
+| DNS | resolve `www.missao.maverick.com` para o IP do AP (captive portal simples) |
 
 | Serviço | Porta | Protocolo | Descrição |
 |---|---|---|---|
 | Broadcast ADS-B | 4444 | UDP | Envia um JSON com os dados da aeronave sorteada sempre que um triângulo é detectado |
-| Servidor de fotos | 8888 | TCP | Recebe `GET:<index>\n` e responde `START:<tipo>:<index>:<size>:<id>:<timestamp>\n` + bytes do JPEG + `\nEND_FRAME\n` |
-| Galeria web | 80 | HTTP | `GET /` lista as fotos salvas; `GET /download?file=<path>` baixa um arquivo do SD |
+| Servidor de fotos | 8888 | TCP | Recebe `GET:<index>\n` e responde `START:<tipo>:<index>:<size>:<id>:<timestamp>\n` + bytes do JPEG + `\nEND_FRAME\n`. Ao concluir, arquiva a foto na pasta da missão atual |
+| Painel web | 80 | HTTP | `GET /` mostra o painel; `GET /download?file=<path>` baixa um arquivo do SD |
 
 ### Exemplo de payload ADS-B (UDP)
 
@@ -119,6 +122,18 @@ O ESP32 sobe seu próprio Access Point — não há acesso à internet nessa red
 }
 ```
 
+## Painel web
+
+Acesse `http://192.168.4.1/` (conectado no AP) pra ver duas galerias:
+
+1. **Buffer circular (ao vivo)** — as até 20 fotos mais recentes capturadas
+   nesta sessão, com a telemetria de detecção (`data.txt`: tipo, índice,
+   tamanho, timestamp da missão). É apagado a cada reinício do ESP32.
+2. **Fotos enviadas (missão atual)** — fotos que já foram efetivamente
+   baixadas pelo "computador de bordo" via TCP, junto com o registro ADS-B
+   correspondente (`adsb.txt` da pasta da missão). Essas sobrevivem a
+   reinícios, já que ficam fora do que o buffer circular limpa.
+
 ## Como compilar e gravar
 
 1. Arduino IDE (ou `arduino-cli`) com o core **esp32** by Espressif instalado.
@@ -131,22 +146,30 @@ O ESP32 sobe seu próprio Access Point — não há acesso à internet nessa red
 ## Estrutura de dados no SD
 
 ```
+/missao_id.txt                    (contador persistente de sessões de missão)
 /missao/
-  ├── 0.jpg ... 19.jpg   (buffer circular de até 20 fotos)
-  └── data.txt           (log: TIPO, índice circular, índice total, tamanho, timestamp)
+  ├── 0.jpg ... 19.jpg            (buffer circular: fotos ainda não enviadas)
+  ├── data.txt                    (telemetria do buffer circular: TIPO, CID, TID, Size, TS)
+  └── missao_XXX/                 (pasta desta sessão, criada no boot)
+        ├── <index>.jpg           (fotos já enviadas via TCP, arquivadas aqui)
+        └── adsb.txt              (1 linha por ADS-B enviado: CID, ICAO24, CALLSIGN, LAT, LON, ALT_FT, GS_KT, TRACK_DEG, VRATE_FPM, SQUAWK)
 ```
+
+Sem internet nem RTC, não há como usar data/hora real — por isso as sessões
+são numeradas sequencialmente (`missao_001`, `missao_002`, ...) em vez de
+organizadas por data.
 
 ## Limitações conhecidas
 
 - **SD obrigatório para persistência:** sem cartão SD montado, a detecção e o
-  broadcast ADS-B continuam funcionando, mas nenhuma foto é salva e a galeria
+  broadcast ADS-B continuam funcionando, mas nenhuma foto é salva e o painel
   web retorna erro.
 - **`GET /download` sem validação de caminho:** o parâmetro `file` é usado
   diretamente para abrir arquivos no SD, sem restringir a um diretório — vale
   travar isso antes de expor a rede a mais gente.
-- **Frontend em revisão:** a galeria web ainda referencia imagens de branding
-  de outro projeto (`atlas.png`, `solo.png`, `sats.png`, `wall.jpg`) que não
-  existem neste SD.
+- **Buffer circular de 20 posições:** se o computador de bordo não baixar as
+  fotos em ritmo suficiente, uma detecção pode ser sobrescrita antes de ser
+  arquivada.
 
 ## Créditos
 

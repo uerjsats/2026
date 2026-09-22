@@ -96,7 +96,6 @@ String captureAndSave() {
         calculateCentroid(&centroX, &centroY);
         tipoFigura = identifyShape(centroX, centroY, centroX - 160, centroY - 120);
     }
-    Serial.printf("[VISION] Resultado do frame: %s (contourSize=%d)\n", tipoFigura.c_str(), contourSize);
 
     if (tipoFigura != "TRIANGULO") {
         esp_camera_fb_return(fb);
