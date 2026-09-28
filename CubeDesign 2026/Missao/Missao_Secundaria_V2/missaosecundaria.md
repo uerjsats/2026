@@ -47,16 +47,12 @@ identifyAircraft() ──► Otsu + maior mancha escura + contorno + polígono
                          em adsb.txt na pasta da missão
 ```
 
-Cada detecção já nasce salva na pasta definitiva da sessão — não existe mais
-buffer circular nem etapa de "mover depois". Isso porque, numa versão
-anterior, a foto só era arquivada quando o computador de bordo baixava ela
-via TCP, e sem esse download a foto nunca saía do buffer temporário e era
-apagada no próximo reinício. Salvar direto elimina esse problema.
+Cada detecção já nasce salva na pasta definitiva da sessão.
 
 ## O algoritmo de detecção de avião
 
 `identifyAircraft()` (em `VisionSystem.cpp`) é bem diferente do teste de
-ângulo do VANTsat original — ele olha a silhueta inteira, combinando:
+ângulo do VANTsat original, ele olha a silhueta inteira, combinando:
 
 | Etapa | O que faz |
 |---|---|
