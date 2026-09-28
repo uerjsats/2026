@@ -82,49 +82,11 @@ mais largo e "rombudo" que as deltas mais compactas usadas na calibração
 inicial — cada alargamento foi revalidado contra as 337 formas de teste antes
 de ser aplicado (ver [Validação](#validação)).
 
-## O que é herdado do VANTsat_TX_V3 x o que é novo
-
-Só duas coisas desta branch vêm do firmware original (marcadas com
-`NÃO MUDE NADA AQUI!` no `VisionSystem.cpp`):
+## O que é herdado do VANTsat_TX_V3 
 
 - **`initVisionBuffers()`** — aloca o buffer `contour[]` na PSRAM.
 - **`perpendicularDistance()`** — usada pela simplificação de polígono
   (`acRdp`/`acPolygon`) do detector de avião.
-
-Todo o resto do caminho original (`findContour`, `drawLine`,
-`simplifyContour`, `calculateCentroid`, `identifyShape`, e o
-`processVisionFrame` — que já nem era chamado por ninguém) foi removido
-**só nesta branch**. Continua 100% intacto na `main`. Tudo daqui pra baixo em
-`VisionSystem.cpp` (Otsu, blob-fill, `acTrace`, `acPolygon`, `acHullArea`,
-`identifyAircraft`) é código novo.
-
-## Validação
-
-Antes de mexer no hardware, o algoritmo foi validado rodando o
-`VisionSystem.cpp` real do projeto (compilado, não simulado) contra centenas
-de quadros sintéticos 320×240 gerados em Python, cobrindo pouca luz,
-desfoque, ruído e reflexo de brilho:
-
-- **337 quadros de controle** (triângulos, quadrados, vazio, e 12 formas
-  "armadilha": círculo, elipse, estrela, cruz, casa, losango, T, pentágono,
-  trapézio, retângulo largo, triângulo reto e invertido) → **0 falsos
-  positivos** em todos.
-- **189 quadros das aeronaves de referência** (Euro, X-47C, X-45C, a mesma
-  família do X-45A/X-47B/B-2) → **187 reconhecidos** (98,9%).
-- **X-45A e X-47B** (silhuetas desenhadas a partir de fotos reais) → **9/9**
-  variações de escala/posição reconhecidas.
-- **B-2 Spirit** → **6/9** — as 3 falhas foram só em escala muito pequena
-  (recorte ocupando pouco do quadro); em escala normal, passa.
-
-Três silhuetas de teste prontas pra imprimir (X-45A, B-2, X-47B) estão salvas
-em `~/Downloads/silhuetas_avioes_teste/` no computador da equipe.
-
-**Importante:** o algoritmo (como o original) exige uma silhueta **escura e
-sólida sobre fundo claro**, vista de cima, nariz pra cima — tipo um recorte
-de papel/cartolina. Fotos de aviões em voo (céu/nuvens de fundo, cores
-claras) não funcionam como alvo físico; isso foi testado e confirmado com 7
-fotos reais, todas rejeitadas pelo mesmo motivo (a mancha de fundo, não o
-avião, fica marcada como "escura").
 
 ## Módulos
 
