@@ -1,7 +1,7 @@
 //Inclusão de bibliotecas de pinos
 #include "pinos.h"
 #include <SoftwareSerial.h>
-
+#include <math.h> // Necessário para a função acos() e PI
 
 // ===========================================
 // --- Controle de Atitude ---
@@ -10,8 +10,14 @@
 #define CONTROLLERMODE 0
 #define linkSerial_DEBUG_ENABLE 1
 
-// Define os códigos de retorno
+// ===========================================
+// --- Variáveis para Teste Estático (Shift de Luz) ---
+// ===========================================
+double luzMaxima = 0;   // Valor lido quando a luz está 0 graus (de frente)
+double luzMinima = 0;   // Valor lido da luz ambiente (sem o refletor)
+bool luzCalibrada = false;
 
+// Define os códigos de retorno
 #define CA_READY "0"
 #define CA_ININT_ESTAB "1" // incializar modo de estabilização
 #define CA_ORIENT_LUZ  "3"
@@ -50,7 +56,8 @@ enum MODOSistema
   MODOESTABILIZAR,     // Modo de controle de velocidade angular (cancelamento de giro)
   MODOORIENTARLUZ,    // Modo de busca e travamento na fonte de luz (LDR)
   MODOORIENTAUM,
-  MODOORIENTADOIS
+  MODOORIENTADOIS,
+  MODOMEDIRSHIFT     // Modo de cálculo do delta que a luz vai dar
 };
 
 // Variável que armazena o estado atual de operação do satélite
@@ -105,6 +112,7 @@ bool modoEstabilizacao = false;
 bool modoAnguloAlvo = false;
 double anguloAlvo = 0;
 unsigned long ultimoEnvioAngulo = 0;
+
 // ===========================================
 // ------ MPU6050 (Giroscópio) -----
 // ===========================================
@@ -119,7 +127,6 @@ double alfaSat = 0;
 // Velocidade angular lida pelo giroscópio
 double omegaSat = 0;
 double yawAngle = 0, yawAngularSpeed = 0;
-
 // -----------------------------------------
 
 // ===========================================
@@ -197,7 +204,6 @@ bool aguardaValorChave(int pinoChave, int valorEsperado, unsigned long tempoTime
       return true; // Valor esperado atingido dentro do tempo
     }
   }
-
   return false; // Timeout atingido sem atingir o valor esperado
 }
 
@@ -264,15 +270,12 @@ void setup()
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, LOW);
 
-
- linkSerial.println(CA_READY); // setup do CA terminado 
-  
+  linkSerial.println(CA_READY); // setup do CA terminado 
 }
 
 // Função principal do programa, executada repetidamente
 void loop() 
 {
-
   // === Comunicação linkSerial (Recebimento de Comandos) ===
   if (linkSerial.available() > 0) 
   {
@@ -288,7 +291,6 @@ void loop()
     }
     else if (comando == "2") 
     {
-      
       linkSerial.print("3 : Informe os Angulos ");
       comando = linkSerial.readStringUntil('\n');
       // Encontra a posição do caractere delimitador ':'
@@ -308,7 +310,6 @@ void loop()
       //Implementação de giro para dois angulos
       modoAtual = MODOORIENTADOIS;
       noAlvo = false;
-
     }
     else if (comando == "3") 
     {
@@ -318,19 +319,15 @@ void loop()
       orientado = false;
       modoAtual = MODOORIENTARLUZ;
     }
-
     else if (comando == "4")
     {
-
       float alfaAzimuth = girar360();
       linkSerial.print("3");
       linkSerial.print(":");
       linkSerial.print(CA_AZIMUT_ENCONTRADO); // Azimut encontrado 
       linkSerial.println(alfaAzimuth);
-       modoAtual = MODOPARADO;
-
+      modoAtual = MODOPARADO;
     }
-
     else if (comando == "5") 
     {
       linkSerial.print("3");
@@ -357,7 +354,6 @@ void loop()
       digitalWrite(LED, LOW);
        modoAtual = MODOPARADO;
     }
-
     else if(comando == "7")
     {
       linkSerial.print("3");
@@ -380,7 +376,6 @@ void loop()
       }
        modoAtual = MODOPARADO;
     }
-
     else if(comando == "8")
     {
       linkSerial.print("3");
@@ -419,7 +414,6 @@ void loop()
         linkSerial.println("Digite 9 novamente para editar valores.");
         modoEdicaoPID = true;
        } // if !modoEdicaoPID
-
        else {
           // Segundo comando 9 → entra em modo edição
           linkSerial.println("3: Edição de PID");
@@ -433,7 +427,6 @@ void loop()
            // não bloqueia outras tarefas se você colocar aqui
           }
 
-
           if (linkSerial.available() > 0) {
           String valores = linkSerial.readStringUntil('\n');
           valores.trim();
@@ -443,40 +436,64 @@ void loop()
              }
 
           modoEdicaoPID = false; // sai do modo edição
-           modoAtual = MODOPARADO;
-
-
-       } // else
-
-
-
-    } // comando 9 
+          modoAtual = MODOPARADO;
+       } 
+    } 
       
-
-
-  
-   
-
-
+    // NOVOS COMANDOS DE CALIBRAÇÃO E MEDIÇÃO ADICIONADOS AQUI
     else if(comando == "10")
     {
-
-      //Em fase de testes
+      // COMANDO 10: CALIBRAR O AZIMUTE 0º (LUZ DE FRENTE)
+      linkSerial.println("3: Calibrando Luz de Frente (0 graus)...");
       
+      long somaLuz = 0;
+      for(int i = 0; i < 50; i++) {
+         // Lendo a média dos dois LDRs (se estiverem na mesma face)
+         somaLuz += (analogRead(LDRAZUL) + analogRead(LDRVERMELHO)) / 2;
+         delay(10);
+      }
+      luzMaxima = somaLuz / 50.0;
+      luzCalibrada = true;
+      
+      linkSerial.print("3: Luz Maxima salva: ");
+      linkSerial.println(luzMaxima);
+      modoAtual = MODOPARADO;
+    }
+    
+    else if(comando == "12")
+    {
+      // COMANDO 12: CALIBRAR LUZ AMBIENTE (MÍNIMA)
+      linkSerial.println("3: Calibrando Luz Minima (Escuro)...");
+      
+      long somaLuz = 0;
+      for(int i = 0; i < 50; i++) {
+         somaLuz += (analogRead(LDRAZUL) + analogRead(LDRVERMELHO)) / 2;
+         delay(10);
+      }
+      luzMinima = somaLuz / 50.0;
+      luzCalibrada = true;
+      
+      linkSerial.print("3: Luz Minima salva: ");
+      linkSerial.println(luzMinima);
+      modoAtual = MODOPARADO;
     }
 
     else if(comando == "11")
     {
-
-      //Em fase de testes
-
+      // COMANDO 11: INICIAR MEDIÇÃO DO SHIFT DE LUZ
+      if (!luzCalibrada) {
+         linkSerial.println("3: ERRO - Calibre a luz de frente (10) e minima (12) primeiro!");
+      } else {
+         linkSerial.println("3: Iniciando transmissao do delta angular...");
+         modoAtual = MODOMEDIRSHIFT;
+      }
     }
-
     else 
     {
       linkSerial.println("Comando inválido!");
     }
-  }
+  } // <--- FIM DO BLOCO DE LEITURA SERIAL
+
   // === Execução dos modos (Máquina de Estados) ===
   switch (modoAtual) {
     case MODOPARADO:
@@ -488,9 +505,14 @@ void loop()
       estabilizar();
       break;
 
+    case MODOMEDIRSHIFT: 
+      medirShiftLuz();
+      break;
+
     case MODOORIENTARLUZ:
       orientarLuz();
       break;
+
     case MODOORIENTADOIS:
       executarDoisAngulos();
       break;
@@ -551,7 +573,6 @@ void defineVelocidade(double velocidadeAlvo)
     analogWrite(IN2, valorPwm);
   }
 }
-
 
 // ==== Função responsável por estabilizar o Satélite (cancelar o giro) =====
 void estabilizar()
@@ -684,12 +705,10 @@ void estabilizar()
 
     // Aplica a velocidade ao motor DC
     defineVelocidade(velocidadeAlvo);
-
   }
-
 }
-float girar360() {
 
+float girar360() {
   anguloatual();
   int anguloInicial = normaliza360(alfaSat);
   int ultimoAngulo = anguloInicial;
@@ -709,7 +728,6 @@ float girar360() {
   long avancototal = 0;
 
   while (true) {
-
     // ----- PARADA SEGURA -----
     if (avancototal >= 360) break;                          // PARADA REAL
     if (millis() - inicioBusca > tempoMaximo) break;        // TEMPO MÁXIMO
@@ -820,7 +838,6 @@ void anguloatual() {
   }
 }
 
-
 // Move a roda de reação para o ângulo escolhido
 void irParaAngulo(double anguloAlvo) {
 
@@ -856,11 +873,8 @@ void irParaAngulo(double anguloAlvo) {
   defineVelocidade(comando);
 }
 
-
-
 void orientarLuz()
 {
-
   anguloatual();
   if (!orientado)
   {
@@ -870,13 +884,11 @@ void orientarLuz()
   irParaAngulo(anguloDesejado);
 }
 
-
 // ===========================================
 // --- Função para Processar Valores PID ---
 // ===========================================
 void processarValoresPID(String valores) {
   // Divide a string pelos espaços
-
   linkSerial.println("Entrando na função");
   int primeiroEspaco = valores.indexOf(' ');
   int segundoEspaco = valores.indexOf(' ', primeiroEspaco + 1);
@@ -931,8 +943,6 @@ void processarValoresPID(String valores) {
   }
 }
 
-
-
 bool chegouNoAngulo(double alvo) {
   anguloatual();
 
@@ -966,4 +976,34 @@ void executarDoisAngulos() {
             modoAtual = MODOPARADO;  
         }
     }
+} // CHAVE CORRIGIDA: Agora a função medirShiftLuz não está presa aqui dentro!
+
+void medirShiftLuz() {
+  static unsigned long ultimoEnvio = 0;
+  
+  if (millis() - ultimoEnvio > 500) { // Transmite a cada 0.5 segundos
+    ultimoEnvio = millis();
+    
+    // 1. Lê os sensores
+    double leituraAtual = (analogRead(LDRAZUL) + analogRead(LDRVERMELHO)) / 2.0;
+    
+    // 2. Proteção contra divisão por zero
+    double denominador = luzMaxima - luzMinima;
+    if (denominador == 0) denominador = 1.0; 
+
+    // 3. Normaliza (tira o ruído ambiente)
+    double razao = (leituraAtual - luzMinima) / denominador;
+    
+    // 4. Trava os limites entre 0.0 e 1.0 para o acos não dar erro (NaN)
+    if (razao > 1.0) razao = 1.0;
+    if (razao < 0.0) razao = 0.0;
+    
+    // 5. Calcula o ângulo: acos() retorna em radianos, multiplicamos por 180/PI
+    double anguloShift = acos(razao) * (180.0 / PI);
+    
+    // 6. Envia por telemetria
+    linkSerial.print("Angulo Estimado: ");
+    linkSerial.print(anguloShift, 1);
+    linkSerial.println(" graus");
+  }
 }
