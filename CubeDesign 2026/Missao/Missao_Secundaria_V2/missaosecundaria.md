@@ -5,11 +5,6 @@ Firmware para ESP32-S3 (XIAO Sense) que detecta **silhuetas de aeronaves**
 simula um registro ADS-B associado à detecção e expõe tudo isso (foto +
 telemetria + ADS-B) num painel web servido pelo próprio ESP32.
 
-> Esta branch é dedicada **só** a avião — o caminho original de detecção de
-> `TRIANGULO`/`QUADRADO` do VANTsat_TX_V3 foi removido daqui e continua
-> intacto na `main`. Veja [O que é herdado do VANTsat_TX_V3](#o-que-é-herdado-do-vantsat_tx_v3-x-o-que-é-novo)
-> pro mapeamento exato do que foi reaproveitado.
-
 ---
 
 ## Sumário
