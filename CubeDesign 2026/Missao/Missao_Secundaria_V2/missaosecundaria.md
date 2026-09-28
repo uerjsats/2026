@@ -1,4 +1,4 @@
-# Missão Secundária — CubeDesign 2026 (branch `deteccao-aviao`)
+# Missão Secundária_V2 — CubeDesign 2026 (`deteccao-aviao`)
 
 Firmware para ESP32-S3 (XIAO Sense) que detecta **silhuetas de aeronaves**
 (UCAVs tipo asa delta) por visão computacional, salva a foto no cartão SD,
