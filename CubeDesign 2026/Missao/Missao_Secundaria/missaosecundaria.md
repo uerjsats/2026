@@ -106,17 +106,12 @@ O ESP32 sobe seu próprio Access Point — não há acesso à internet nessa red
 
 ### Exemplo de payload ADS-B (UDP)
 
+O payload leva **só latitude e longitude** do ADS-B simulado (mais o índice/tamanho da foto). O OBC usa lat/lon para perguntar ao Orange Pi se a aeronave consta no banco de autorizadas.
+
 ```json
 {
-  "icao24": "A1B2C3",
-  "callsign": "TAM3251",
   "lat": -22.9068,
   "lon": -43.1729,
-  "alt_ft": 35000,
-  "gs_kt": 450,
-  "track_deg": 90,
-  "vrate_fpm": 0,
-  "squawk": "2200",
   "photo_index": 3,
   "photo_size": 18234
 }
