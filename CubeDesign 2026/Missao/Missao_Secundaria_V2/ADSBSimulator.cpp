@@ -26,15 +26,10 @@ ADSBRecord getRandomADSB() {
 
 String buildADSBPayload(const ADSBRecord &record, int photoIndex, size_t photoSize) {
     String json = "{";
-    json += "\"icao24\":\"" + String(record.icao24) + "\",";
-    json += "\"callsign\":\"" + String(record.callsign) + "\",";
+    // Só latitude e longitude do ADS-B: o OBC usa essas coordenadas para perguntar
+    // ao Orange Pi (2:QRY,lat,lon) se a aeronave consta no banco de autorizadas.
     json += "\"lat\":" + String(record.latitude, 4) + ",";
     json += "\"lon\":" + String(record.longitude, 4) + ",";
-    json += "\"alt_ft\":" + String(record.altitudeFt) + ",";
-    json += "\"gs_kt\":" + String(record.groundSpeedKt) + ",";
-    json += "\"track_deg\":" + String(record.trackDeg) + ",";
-    json += "\"vrate_fpm\":" + String(record.verticalRateFpm) + ",";
-    json += "\"squawk\":\"" + String(record.squawk) + "\",";
     json += "\"photo_index\":" + String(photoIndex) + ",";
     json += "\"photo_size\":" + String((unsigned long)photoSize);
     json += "}";
