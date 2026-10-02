@@ -246,4 +246,4 @@ Tudo na classe `Config` (topo do [`adsb_cubesat.py`](OrangePiZero3/adsb_cubesat.
 
 ## 👥 Créditos
 
-Equipe **UERJsats** · CubeDesign 2026. Firmwares ESP32 derivados do VANTsat_TX_V3 (Carlos Leal e Vitor Forny) — <https://github.com/uerjsats>.
+Equipe **UERJsats** · CubeDesign 2026. Firmwares ESP32 derivados do VANTsat_TX_V3 (Carlos Leal e Vitor Forny) e funcionamento da missão definido pela escolha do Carlos Leal e Vitor Forny.
