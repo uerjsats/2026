@@ -51,10 +51,7 @@ import time
 
 log = logging.getLogger("adsb")
 
-
-# =============================================================================
 # Configuração
-# =============================================================================
 class Config:
     """Única fonte de configuração. Argumentos de linha de comando sobrescrevem."""
 
@@ -100,10 +97,7 @@ class Config:
 
     ARQUIVO_TEMP_CPU = "/sys/class/thermal/thermal_zone0/temp"
 
-
-# =============================================================================
 # Protocolo da serial
-# =============================================================================
 class Protocolo:
     """
     Endereçamento do OBC: cada subsistema tem um número. Mensagens ASCII, uma por linha:
@@ -159,9 +153,7 @@ class Protocolo:
         return tipo, [p.strip() for p in partes[1:]]
 
 
-# =============================================================================
 # Métricas
-# =============================================================================
 class Metricas:
     """Contadores da missão (base para as métricas de sucesso, HLR-ADS-08)."""
 
@@ -203,10 +195,7 @@ class Metricas:
             d["lat_max_ms"] = round(1000 * self.lat_max, 1)
             return d
 
-
-# =============================================================================
 # Banco de dados (SQLite)
-# =============================================================================
 class BancoMissao:
     """
     Arquivo persistente <PASTA_SD>/adsb.db (cartão SD) com:
@@ -374,10 +363,7 @@ class BancoMissao:
                 print(" | ".join(str(l[c]) for c in cls.COLUNAS_ADSB))
         con.close()
 
-
-# =============================================================================
 # Enlace serial com o OBC
-# =============================================================================
 class EnlaceSerial:
     """
     Serial resiliente: reabre sozinha se a porta cair e escreve por thread
@@ -477,9 +463,7 @@ class EnlaceSerial:
                 self._fechar()
 
 
-# =============================================================================
 # Fontes de dados ADS-B  (classe base + 3 implementações)
-# =============================================================================
 class FonteADSB(abc.ABC):
     """
     Base: guarda o estado acumulado por aeronave e decide quando emitir um
@@ -865,13 +849,11 @@ def criar_fonte(nome, *args, **kwargs):
         raise ValueError(f"fonte desconhecida: {nome} (use auto|dump1090|pymodes|sim)")
     return classes[nome](*args, **kwargs)
 
-
-# =============================================================================
 # Missão: máquina de estados + comandos
-# =============================================================================
 def linha_ac(r):
     return Protocolo.montar("AC", r["seq"], f"{r['ts']:.3f}", r["icao24"],
-                            f"{r['lat']:.5f}", f"{r['lon']:.5f}", r["alt_ft"], r["gs_kt"])
+                            f"{r['lat']:.5f}", f"{r['lon']:.5f}", r["alt_ft"], r["gs_kt"],
+                            r.get("track_deg"))
 
 
 def temperatura_cpu():
@@ -1062,10 +1044,7 @@ class Missao:
             self.enlace.enviar("QRES", "FOUND", r["icao24"], r["callsign"], r["lat"], r["lon"],
                                r["alt_ft"], r["gs_kt"], r["track_deg"], r["vrate_fpm"], r["squawk"])
 
-
-# =============================================================================
 # main
-# =============================================================================
 def _escolher_pasta(pasta):
     pasta = os.path.expanduser(pasta)
     try:
