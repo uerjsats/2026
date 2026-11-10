@@ -32,7 +32,7 @@ Regras:
 ```
 
 ### Fluxo da missão secundária
-1. O payload ESP32 detecta uma aeronave e manda **foto + info ADS-B (coordenadas)** ao OBC por Wi-Fi/TCP. A foto **não passa pelo Orange**.
+1. O payload ESP32 detecta uma aeronave e manda **foto + latitude/longitude do ADS-B** ao OBC por Wi-Fi/TCP. A foto **não passa pelo Orange**.
 2. O OBC manda ao Orange: `QRY,<lat>,<lon>[,<icao>]`.
 3. O Orange consulta a tabela `autorizadas`: **achou** → `QRES,FOUND,...` = **não clandestina**; **não achou** → `QRES,NONE` = **clandestina**.
 4. O **OBC** repassa à base se é clandestina ou não (firmware do OBC, fora do Orange).
@@ -49,14 +49,14 @@ O ESP32 simula 5 aeronaves; **só duas estão no banco** (as não clandestinas).
   - Device `/dev/ttyS0` (kernel 6.1) ou `/dev/ttyAS0` (kernel 5.4) — o script tenta os dois.
   - Ligação cruzada: TX Orange → RX Heltec, RX Orange → TX Heltec, GND comum. **Nunca 5 V.**
   - **Baud 115200 no código, a validar**: o Heltec usa serial **simulada por software**, que pode não aguentar. Mudar só em `Config.BAUD`.
-  - Por padrão é o **console do Linux**: `instalacao/instalar_servico.py` desativa o `serial-getty` e põe `console=display` em `/boot/orangepiEnv.txt`. O U-Boot ainda imprime algo no boot → o protocolo tolera lixo (checksum + ressincroniza no `$`).
+  - Por padrão é o **console do Linux**: `instalacao/instalar_servico.py` desativa o `serial-getty` e põe `console=display` em `/boot/orangepiEnv.txt`. O U-Boot ainda imprime algo no boot → o protocolo ignora lixo (só aceita linhas que começam com `2:`).
   - UART0 divide pinos com PWM3/PWM4 (não habilitar `ph-pwm34`). Alternativa: UART5 do header de 26 pinos (`ph-uart5`, `/dev/ttyS5`).
 
 ---
 
 ## 3. Protocolo serial Orange ↔ OBC
 
-ASCII, uma mensagem por linha, estilo NMEA: `$TIPO,campo,campo,...*XX\n` — `XX` = XOR dos caracteres entre `$` e `*`, hex 2 dígitos. Classe `Protocolo` em `adsb_cubesat.py`. O OBC precisa gerar/validar o mesmo checksum. Linha de teste: `python3 adsb_cubesat.py frame "START,600"`. O Orange **ignora** TC sem checksum válido (`Config.EXIGIR_CHECKSUM_TC`; `--sem-checksum` só em bancada).
+ASCII, uma mensagem por linha. Cada subsistema do OBC tem um **endereço**. O Orange Pi é o **`2`**. O OBC manda `2:COMANDO[,arg,...]` (ex.: `2:START,600`) e o Orange responde `2:TIPO[,campo,...]` (ex.: `2:ACK,START,1`), no mesmo padrão do Controle de Atitude (que responde `3:...`). Linhas que **não começam com `2:`** são de outros subsistemas ou lixo de boot e são ignoradas. Checksum é **opcional** (`...*XX`, XOR hex dos caracteres depois de `2:`): validado se vier; exigido só com `Config.EXIGIR_CHECKSUM_TC`; respostas só levam `*XX` com `Config.CHECKSUM_TX`. Endereço configurável (`Config.ENDERECO_ORANGE`, `--endereco`). Classe `Protocolo` em `adsb_cubesat.py`; ver a linha de um comando: `python3 adsb_cubesat.py frame "START,600"`.
 
 ### TC — OBC → Orange
 | Comando | Efeito |
@@ -77,7 +77,7 @@ ASCII, uma mensagem por linha, estilo NMEA: `$TIPO,campo,campo,...*XX\n` — `XX
 | `EVT,SDR_OK` / `EVT,SDR_ERR,<msg>` | receptor iniciou / falhou (reabre sozinho com backoff) |
 | `EVT,DONE,<sessão>` | missão terminou por tempo |
 | `ACK,<cmd>[,..]` / `NAK,<cmd>,<motivo>` | resposta a TC |
-| `AC,<seq>,<ts>,<icao24>,<lat>,<lon>,<alt_ft>,<gs_kt>` | uma aeronave (5 parâmetros do regulamento + timestamp) |
+| `AC,<seq>,<ts>,<icao24>,<lat>,<lon>,<alt_ft>,<gs_kt>,<track_deg>` | uma aeronave (5 parâmetros do regulamento + timestamp + rumo) |
 | `STATUS,<estado>,<modo>,<uptime_s>,<temp_cpu_C>,<msgs_rx>,<msgs_validas>,<aeronaves>,<ac_enviados>,<lat_media_ms>,<lat_max_ms>` | estado |
 | `QRES,FOUND,<icao24>,<callsign>,<lat>,<lon>,<alt_ft>,<gs_kt>,<track_deg>,<vrate_fpm>,<squawk>` | **não clandestina** |
 | `QRES,NONE` | **clandestina** |
@@ -91,7 +91,7 @@ ASCII, uma mensagem por linha, estilo NMEA: `$TIPO,campo,campo,...*XX\n` — `XX
 | Classe | Papel |
 |---|---|
 | `Config` | **todas** as constantes (porta, baud, ganho, tempos, pastas, tolerância, fonte) |
-| `Protocolo` | `montar` / `interpretar` / `checksum` |
+| `Protocolo` | endereçamento `2:` — `montar` / `interpretar` / `checksum` |
 | `Metricas` | contadores (rx, válidas, registros, enviados, descartados, nº aeronaves, latência média/máx) → `STATUS` e log |
 | `BancoMissao` | SQLite no SD (`autorizadas`, `adsb`) + buffer em RAM disk; `flush`, `consultar_autorizada`, `cli` |
 | `EnlaceSerial` | serial resiliente; thread de escrita; respostas > AC; fila de AC limitada |
@@ -162,7 +162,7 @@ Missao/
 - [ ] Validar o **baud** real com o Heltec (SoftwareSerial).
 - [ ] Testar com **RTL-SDR e simulador SDR reais** (parser SBS e subprocesso foram testados offline com um dump1090 falso; a compilação do dump1090-fa no Orange e o dongle real ainda não).
 - [ ] Confirmar `console=display` em `/boot/orangepiEnv.txt` e `ttyS0` livre no Ubuntu 22.04 da placa.
-- [ ] Firmware do Heltec: checksum, tratar `QRES`, reportar clandestina/não clandestina à base.
+- [ ] Firmware do Heltec: confirmar o formato dos comandos após `2:` (hoje: `START`, `STOP`, `QRY,lat,lon`... em texto) e o das respostas `2:...`; tratar `QRES`; reportar clandestina/não clandestina à base.
 - [ ] Metas quantitativas de sucesso (% decodificado, perda máx., latência máx.) usando os números do `STATUS`.
 - [ ] Preencher mais aeronaves em `autorizadas` / ajustar a tolerância do `QRY`.
 
