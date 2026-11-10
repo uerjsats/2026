@@ -9,6 +9,8 @@
 Software de bordo do **Orange Pi Zero 3** que roda dentro do CubeSat da equipe **UERJsats**. Ele recebe sinais **ADS-B** de aeronaves com um **RTL-SDR**, decodifica tudo **a bordo** e entrega os dados ao **computador de bordo (Heltec WiFi LoRa 32 V3)** por **serial UART**. Também responde ao OBC se uma aeronave detectada pela **missão secundária** é **clandestina** ou não.
 
 > 🤖 Vai colar isto numa IA? Use o [README_IA.md](README_IA.md) (contexto completo e regras do projeto).
+>
+> 📟 Faz o firmware do computador de bordo? Veja o [README_OBC.md](README_OBC.md) (comandos, respostas e exemplo de código do OBC).
 
 ---
 
@@ -33,7 +35,7 @@ flowchart LR
         M <--> S["EnlaceSerial"]
     end
     SDR --> D
-    S <-- "UART 3,3 V<br/>$TIPO,campos*XX" --> OBC["Heltec V3<br/>(OBC)"]
+    S <-- "UART 3,3 V<br/>2:COMANDO,args" --> OBC["Heltec V3<br/>(OBC)"]
     ESP["ESP32-S3<br/>detecção de aeronaves"] -- "Wi-Fi TCP<br/>foto + ADS-B" --> OBC
     OBC -- "LoRa" --> BASE["Base terrestre"]
 ```
@@ -57,12 +59,12 @@ sequenceDiagram
     participant O as OBC (Heltec)
     participant P as Orange Pi
     E->>O: foto + ADS-B com coordenadas (Wi-Fi/TCP)
-    O->>P: $QRY,lat,lon*XX
+    O->>P: 2:QRY,lat,lon
     P->>P: busca na tabela "autorizadas"
     alt consta no banco
-        P->>O: $QRES,FOUND,... (NÃO clandestina)
+        P->>O: 2:QRES,FOUND,... (NÃO clandestina)
     else não consta
-        P->>O: $QRES,NONE (CLANDESTINA)
+        P->>O: 2:QRES,NONE (CLANDESTINA)
     end
     O->>O: repassa o veredito à base
 ```
@@ -144,23 +146,23 @@ Cobre protocolo, banco, `QRY`, ciclo `START/STOP`, `DUMP`, flush RAM→SD e a le
 Pare o serviço e rode à mão:
 ```bash
 sudo systemctl stop adsb-cubesat
-~/venv_adsb/bin/python adsb_cubesat.py --fonte sim --sem-checksum --pasta-sd ~/adsb_teste
+~/venv_adsb/bin/python adsb_cubesat.py --fonte sim --pasta-sd ~/adsb_teste
 ```
 Do outro lado da serial (um PC com adaptador USB‑serial **3,3 V** ligado nos 3 pinos, em `screen /dev/ttyUSB0 115200` ou PuTTY) digite:
 ```
-$PING
-$START,60
-$QRY,-22.88,-43.30
-$STATUS
-$STOP
+2:PING
+2:START,60
+2:QRY,-22.88,-43.30
+2:STATUS
+2:STOP
 ```
-Sem `--sem-checksum`, gere as linhas com checksum: `python3 adsb_cubesat.py frame "START,60"`.
+As respostas do Orange também começam com `2:` (ex.: `2:ACK,PING`).
 
 ### 3. Com RTL-SDR e simulador SDR reais
 ```bash
 lsusb | grep -i 0bda                  # dongle aparece?
 dump1090-fa --net --quiet &           # (opcional) teste o receptor sozinho; depois: kill %1
-sudo systemctl restart adsb-cubesat   # volta a IDLE; mande $START pela serial
+sudo systemctl restart adsb-cubesat   # volta a IDLE; mande `2:START` pela serial
 ```
 Com o `START`, aparecem linhas `AC,...` na serial e o `EVT,SDR_OK`. Pare o `dump1090-fa` manual antes: só **um** processo pode usar o dongle.
 
@@ -173,7 +175,7 @@ python3 adsb_cubesat.py banco ultimos 20
 
 ## 📨 Protocolo da serial
 
-Texto ASCII, uma linha por mensagem: `$TIPO,campo,campo,...*XX` (`XX` = XOR hex dos caracteres entre `$` e `*`). Linhas sem checksum válido são ignoradas.
+Texto ASCII, uma linha por mensagem, com **endereçamento**: o Orange Pi é o endereço **`2`**. O OBC manda `2:COMANDO[,args]` e o Orange responde `2:TIPO[,campos]`. Linhas que não começam com `2:` (outros subsistemas, lixo de boot) são ignoradas. Checksum `*XX` é opcional (`Config.EXIGIR_CHECKSUM_TC` / `CHECKSUM_TX`).
 
 **Comandos (OBC → Orange)**
 
@@ -193,7 +195,7 @@ Texto ASCII, uma linha por mensagem: `$TIPO,campo,campo,...*XX` (`XX` = XOR hex 
 | Mensagem | Significado |
 |---|---|
 | `EVT,BOOT` · `EVT,SDR_OK` · `EVT,SDR_ERR,<msg>` · `EVT,DONE,<sessão>` | eventos |
-| `AC,<seq>,<ts>,<icao24>,<lat>,<lon>,<alt_ft>,<gs_kt>` | uma aeronave decodificada |
+| `AC,<seq>,<ts>,<icao24>,<lat>,<lon>,<alt_ft>,<gs_kt>,<track_deg>` | uma aeronave decodificada (rumo em graus) |
 
 ---
 
@@ -236,7 +238,7 @@ Tudo na classe `Config` (topo do [`adsb_cubesat.py`](OrangePiZero3/adsb_cubesat.
 
 | Sintoma | Causa / solução |
 |---|---|
-| Lixo na serial no boot | o U-Boot imprime na UART de debug; o protocolo ignora linhas sem checksum válido |
+| Lixo na serial no boot | o U-Boot imprime na UART de debug; o protocolo só aceita linhas que começam com `2:` |
 | `EVT,SDR_ERR,dump1090 saiu...` | dongle não plugado, ocupado por outro processo ou driver de TV carregado — veja `/dev/shm/adsb/dump1090.log` |
 | `dump1090 não encontrado` | a compilação falhou no passo 3 do `instalar_ubuntu.py`; rode de novo e leia o erro (cai para `readsb`/pyModeS) |
 | Não abre `/dev/ttyS0` | usuário fora do grupo `dialout` (refaça o `instalar_servico.py` e reinicie) ou console ainda ativo na UART |
@@ -246,4 +248,4 @@ Tudo na classe `Config` (topo do [`adsb_cubesat.py`](OrangePiZero3/adsb_cubesat.
 
 ## 👥 Créditos
 
-Equipe **UERJsats** · CubeDesign 2026. Firmwares ESP32 derivados do VANTsat_TX_V3 (Carlos Leal e Vitor Forny) e funcionamento da missão definido pela escolha do Carlos Leal e Vitor Forny.
+Equipe **UERJsats** · CubeDesign 2026. Firmwares ESP32 derivados do VANTsat_TX_V3 (Carlos Leal e Vitor Forny) — <https://github.com/uerjsats>.
