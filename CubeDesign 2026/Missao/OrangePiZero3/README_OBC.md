@@ -76,8 +76,8 @@ Comando desconhecido → `2:NAK,<CMD>,DESCONHECIDO`. Erro interno → `2:NAK,<CM
 
 ### `AC` — aeronave decodificada
 ```
-2:AC,<seq>,<ts>,<icao24>,<lat>,<lon>,<alt_ft>,<gs_kt>
-2:AC,17,1790950771.056,40621D,52.26578,3.93891,38000,450
+2:AC,<seq>,<ts>,<icao24>,<lat>,<lon>,<alt_ft>,<gs_kt>,<track_deg>
+2:AC,17,1790950771.056,40621D,52.26578,3.93891,38000,450,181
 ```
 | Campo | Tipo | Significado |
 |---|---|---|
@@ -87,6 +87,7 @@ Comando desconhecido → `2:NAK,<CMD>,DESCONHECIDO`. Erro interno → `2:NAK,<CM
 | `lat`, `lon` | decimal (5 casas) | graus |
 | `alt_ft` | inteiro | altitude em pés |
 | `gs_kt` | inteiro | velocidade em nós |
+| `track_deg` | inteiro | rumo (proa de solo) em graus, 0 a 359; pode vir **vazio** se o rumo ainda não foi decodificado |
 
 Cada aeronave gera **no máximo 1 `AC` a cada 2 s**. Com `MODE 1` **não** saem `AC`.
 
@@ -133,10 +134,10 @@ OBC ► 2:STATUS                OBC ◄ 2:STATUS,RUNNING,0,...     (a qualquer m
 
 ## 7. Missão secundária (clandestinas)
 
-O ESP32 manda ao OBC foto + dados ADS-B (JSON por UDP, porta 4444, com `icao24`, `lat`, `lon`...). Para cada detecção o OBC faz:
+O ESP32 manda ao OBC foto + dados ADS-B (JSON por UDP, porta 4444, **só com `lat`, `lon`, `photo_index` e `photo_size`** — não há mais ICAO/callsign/altitude/velocidade). Para cada detecção o OBC faz:
 
 ```
-OBC ► 2:QRY,-22.8800,-43.3000,7788FF     (ICAO opcional)
+OBC ► 2:QRY,-22.8800,-43.3000
 OBC ◄ 2:QRES,FOUND,7788FF,TAP0803,-22.88,-43.3,38000,460,180,600,5511   → NÃO clandestina
         ou
 OBC ◄ 2:QRES,NONE                                                       → CLANDESTINA
@@ -223,6 +224,5 @@ bool aeronaveClandestina(float lat, float lon) {
 
 ## 11. Pontos em aberto (combinar com o time do Orange)
 - [ ] **Baud** definitivo (9600 vs 115200).
-- [ ] Mandar ou não o **ICAO** no `QRY`.
 - [ ] Usar **checksum** ou não.
 - [ ] Tratamento do OBC quando o `QRY` não tem resposta (sugestão: tentar de novo 1× e, se falhar, marcar como "não verificada").
