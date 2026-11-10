@@ -1,6 +1,8 @@
 // UERJ Sats - ADCS 2026: base ControleAtitude_Integracao(2).ino (legado 2025).
 // Alteracoes limitadas a: pinos V2, UART OBC numerica, calibracao/shift LDR 2026.
 // Mantidos controlador de detumbling, controle PD antigo e funcoes de orientacao.
+// CORRECAO ANTENA: motor gira ate o fim de curso ser acionado e continua girando
+// por mais 1 s (TEMPO_EXTRA_ANTENA_MS) antes de parar.
 // AVISO: conferir eletricamente sentido do motor e mecanimos antes de energizar.
 //Inclusão de bibliotecas de pinos
 #include "pinosGiga.h"
@@ -110,7 +112,19 @@ const float curvaNormalLDR1[NUM_PONTOS_LDR] LDR_FLASH = {
 // --- Constantes para Painel e ANtenas  ---
 // ===========================================
 #define TEMPO_ACIONAMENTO_PAINEL 5000
-#define TIMEOUT_ANTENA 10000
+// Tempo maximo (ms) esperando a chave de fim de curso ser acionada.
+#define TIMEOUT_ANTENA 10000UL
+// Tempo (ms) que o motor continua girando DEPOIS que a chave for acionada.
+// Sem movimento extra apos o fim de curso (teste validado).
+// Nivel logico que significa "chave pressionada".
+// Se a chave for ligada com pull-up (pressionada = GND), troque para LOW.
+#define CHAVE_ANTENA_NIVEL_ATIVO HIGH
+// Limiar do analogRead usado para transformar a leitura em HIGH/LOW (0..1023).
+#define CHAVE_ANTENA_LIMIAR 700
+// Numero de leituras consecutivas iguais exigidas (debounce) e intervalo entre elas.
+#define CHAVE_ANTENA_LEITURAS_CONSEC 3
+#define CHAVE_ANTENA_INTERVALO_MS 5
+
 SoftwareSerial controleSerial(OBC_RX_PIN, OBC_TX_PIN);  // RX D12 TX_CT5; TX D13 RX_CT5; 9600 baud
 double anguloOffset = 0;          // Ângulo adicional a ser adicionado após encontrar a luz
 bool luzEncontrada = false;       // Flag indicando se já encontrou a luz
@@ -267,7 +281,7 @@ void ativaPinoPorTempo(int pino1, int pino2, unsigned long tempoAtivo) {
   digitalWrite(pino2, LOW);    
 }
 
-int lerEntradaAnalogicaComoDigital(uint8_t pinoAnalogico, int limiar = 512) {
+int lerEntradaAnalogicaComoDigital(uint8_t pinoAnalogico, int limiar = CHAVE_ANTENA_LIMIAR) {
   int valor = analogRead(pinoAnalogico);
   return (valor > limiar) ? HIGH : LOW;
 }
@@ -282,6 +296,55 @@ bool aguardaValorChave(int pinoChave, int valorEsperado, unsigned long tempoTime
     }
   }
   return false; // Timeout atingido sem atingir o valor esperado
+}
+
+// Retorna true se a chave esta acionada de forma ESTAVEL (debounce):
+// exige N leituras consecutivas no nivel ativo.
+bool chaveAntenaAcionada(int pinoChave) {
+  for (byte i = 0; i < CHAVE_ANTENA_LEITURAS_CONSEC; i++) {
+    if (lerEntradaAnalogicaComoDigital(pinoChave) != CHAVE_ANTENA_NIVEL_ATIVO) return false;
+    delay(CHAVE_ANTENA_INTERVALO_MS);
+  }
+  return true;
+}
+
+// Motor da antena: PWM 180 no D6 para abrir; D8 digital para fechar.
+// IMPORTANTE: pinos da roda de reacao remapeados; conferir conexoes fisicas.
+// Parada imediata ao detectar o fim de curso, com timeout de 10 segundos.
+#define PWM_ABERTURA_ANTENA 180
+bool moverAntenaAteChave(bool abrir, int pinoChave) {
+  digitalWrite(ANTIN1, LOW);
+  digitalWrite(ANTIN2, LOW);
+  delay(50);
+
+  if (chaveAntenaAcionada(pinoChave)) {
+    digitalWrite(ANTIN1, LOW);
+    digitalWrite(ANTIN2, LOW);
+    return true;
+  }
+
+  if (abrir) {
+    digitalWrite(ANTIN2, LOW);
+    analogWrite(ANTIN1, PWM_ABERTURA_ANTENA);
+  } else {
+    digitalWrite(ANTIN1, LOW);
+    digitalWrite(ANTIN2, HIGH);
+  }
+
+  bool chaveOk = false;
+  unsigned long inicio = millis();
+  while (millis() - inicio < TIMEOUT_ANTENA) {
+    if (chaveAntenaAcionada(pinoChave)) {
+      chaveOk = true;
+      break;
+    }
+  }
+
+  // Desliga imediatamente os dois sinais do driver.
+  digitalWrite(ANTIN1, LOW);
+  digitalWrite(ANTIN2, LOW);
+  pararAtuadores();
+  return chaveOk;
 }
 
 // Função de interrupção: incrementa o contador de pulsos do tacômetro
@@ -312,7 +375,7 @@ Serial.begin(115200); // USB: tambem recebe comandos, independentemente do debug
   controleSerial.setTimeout(150);  // Evita bloqueios de 1 s em comandos malformados
   delay(500); // espera estabilizar
   while (controleSerial.available()) controleSerial.read(); // descarta lixo inicial
- 
+
   pinMode(pinoInterrupcao, INPUT);
 
   // Configuração do MPU
@@ -622,34 +685,32 @@ void executarComando(String comando, bool origemUsb) {
     responder(F("Fechar Painel Solar_NAO_IMPLEMENTADO"));
   }
   else if (comando == "8") {
+    // ABRIR ANTENA: gira ate SWANT1 acionar e para.
     avisar(F("CMD8: iniciando abertura da antena"));
     pararAtuadores();
     responder(F("Abrindo Antena"));
-    digitalWrite(ANTIN1, HIGH);
-    digitalWrite(ANTIN2, LOW);
-    avisar(F("CMD8: aguardando fim de curso da antena"));
-    if (aguardaValorChave(SWANT1, HIGH, TEMPO_ACIONAMENTO_PAINEL)) {
+    avisar(F("CMD8: girando ate fim de curso (parada imediata)"));
+    if (moverAntenaAteChave(true, SWANT1)) {
+      avisar(F("CMD8: antena aberta, motor desligado"));
       responder(F("Antena_Aberta"));
     } else {
       avisar(F("CMD8: TIMEOUT fim de curso abertura"));
       responder(F("ERRO_Chave_Abertura_Antena"));
     }
-    pararAtuadores();
   }
   else if (comando == "9") {
+    // FECHAR ANTENA: gira ate SWANT2 acionar e para.
     avisar(F("CMD9: iniciando fechamento da antena"));
     pararAtuadores();
     responder(F("Fechando Antena"));
-    digitalWrite(ANTIN1, LOW);
-    digitalWrite(ANTIN2, HIGH);
-    avisar(F("CMD9: aguardando fim de curso da antena"));
-    if (aguardaValorChave(SWANT2, HIGH, TEMPO_ACIONAMENTO_PAINEL)) {
+    avisar(F("CMD9: girando ate fim de curso (parada imediata)"));
+    if (moverAntenaAteChave(false, SWANT2)) {
+      avisar(F("CMD9: antena fechada, motor desligado"));
       responder(F("Antena_Fechada"));
     } else {
       avisar(F("CMD9: TIMEOUT fim de curso fechamento"));
       responder(F("ERRO_Chave_Fechamento_Antena"));
     }
-    pararAtuadores();
   }
   else if (comando == "10" || comando == "11") {
     avisar(F("EMERGENCIA: parando todos os atuadores"));
@@ -959,7 +1020,7 @@ int mirarluz() {
       menorLuz = mediaLuz;
     }
   }
-  
+
   delay(100); // Reduzido para melhor responsividade
   return anguloMaisClaro;
 }
@@ -1053,48 +1114,48 @@ void processarValoresPID(String valores) {
   responder(F("PID_recebido"));
   int primeiroEspaco = valores.indexOf(' ');
   int segundoEspaco = valores.indexOf(' ', primeiroEspaco + 1);
-  
+
   if (primeiroEspaco == -1 || segundoEspaco == -1) {
     responder(F("ERRO_PID_formato_KP_KD_KV"));
     responder(F("Exemplo:3 2.0 0.5 0.8"));
     return;
   }
-  
+
   String kpStr = valores.substring(0, primeiroEspaco);
   String kdStr = valores.substring(primeiroEspaco + 1, segundoEspaco);
   String kvStr = valores.substring(segundoEspaco + 1);
-  
+
   kpStr.trim();
   kdStr.trim();
   kvStr.trim();
-  
+
   float novoKp = kpStr.toFloat();
   float novoKd = kdStr.toFloat();
   float novoKv = kvStr.toFloat();
-  
+
   // Validação dos valores
   bool valoresValidos = true;
-  
+
   if (novoKp <= 0 || novoKp > 10.0) {
     responder(F("ERRO_PID_Kp_fora_faixa"));
     valoresValidos = false;
   }
-  
+
   if (novoKd < 0 || novoKd > 5.0) {
     responder(F("ERRO_PID_Kd_fora_faixa"));
     valoresValidos = false;
   }
-  
+
   if (novoKv < 0 || novoKv > 5.0) {
     responder(F("ERRO_PID_Kv_fora_faixa"));
     valoresValidos = false;
   }
-  
+
   if (valoresValidos) {
     Kp_pos = novoKp;
     Kd_pos = novoKd;
     Kd_vel = novoKv;
-    
+
     responder(F("PID_ATUALIZADO"));
     responder(String(F("Kp_pos=")) + String(Kp_pos, 3));
     responder(String(F("Kd_pos=")) + String(Kd_pos, 3));
@@ -1137,7 +1198,7 @@ void executarDoisAngulos() {
             modoAtual = MODOPARADO;  
         }
     }
-} // CHAVE CORRIGIDA: Agora a função medirShiftLuz não está presa aqui dentro!
+}
 
 // Estimador do shift: tabela calibrada no ultimo ensaio, interpolacao linear.
 // Retem detumbling, PD legado e demais rotinas do codigo anterior.
