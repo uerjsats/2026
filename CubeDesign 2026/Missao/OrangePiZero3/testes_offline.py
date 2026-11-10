@@ -162,8 +162,8 @@ def main():
         assert missao.estado == "RUNNING"
         acs = saidas(porta, "AC")
         assert len(acs) > 20, len(acs)
-        seq, ts, icao, lat, lon, alt, vel = acs[0][1]
-        assert abs(float(ts) - 1_800_000_000) < 30 and len(icao) == 6
+        seq, ts, icao, lat, lon, alt, vel, rumo = acs[0][1]
+        assert abs(float(ts) - 1_800_000_000) < 30 and len(icao) == 6 and 0 <= int(rumo) <= 359
         status = saidas(porta, "STATUS")[-1][1]
         assert status[0] == "RUNNING" and int(status[6]) == 20, status           # 20 aeronaves
         print(f"RUNNING (fonte sim) OK: {len(acs)} AC, STATUS={status}")
