@@ -31,7 +31,7 @@ telemetria + ADS-B) num painel web servido pelo próprio ESP32.
 Câmera (OV2640)
      │
      ▼
-identifyAircraft() ──► Otsu + maior mancha escura + contorno + polígono
+identifyAircraft() ──► Otsu + maior mancha + eixo de simetria + perfil x 7 modelos
      │
      ├── NENHUM ──► descarta o quadro
      │
@@ -52,42 +52,54 @@ Cada detecção já nasce salva na pasta definitiva da sessão.
 
 ## O algoritmo de detecção de avião
 
-`identifyAircraft()` (em `VisionSystem.cpp`) é bem diferente do teste de
-ângulo do VANTsat original, ele olha a silhueta inteira, combinando:
+`identifyAircraft()` (em `VisionSystem.cpp`) reconhece **vários tipos de aeronave
+vistas de cima, em qualquer rotação**, comparando a silhueta com 7 modelos e com
+todas as misturas entre eles:
 
 | Etapa | O que faz |
 |---|---|
-| Limiar de Otsu | Separa "tinta" de "papel" adaptando-se ao contraste real do quadro, em vez de uma fração fixa do brilho médio |
-| Maior mancha interior | Escolhe o maior blob escuro que não encosta na borda do quadro (8-conectado, busca exaustiva) |
-| Contorno Moore-Neighbor | Rastreia a borda da mancha a partir do primeiro pixel dela (variante do algoritmo original, mas com backtrack em pixel de fundo em vez de limiar de intensidade) |
-| Polígono (RDP fechado) | Simplifica o contorno num polígono, dividindo primeiro no ponto mais distante da semente (variante fechada do RDP original, que era pra uma curva aberta) |
-| Casco convexo | Calcula a área do casco convexo do polígono pra medir a solidez |
+| Limiar de Otsu | Separa "tinta" de "papel" adaptando-se ao contraste real do quadro |
+| Duas polaridades | Testa primeiro silhueta **escura** em fundo claro; se não passar, inverte as cores e testa silhueta **clara** em fundo escuro (avião branco). Se qualquer uma passar, é `AVIAO` |
+| Maior mancha interior | Escolhe o maior blob escuro que não encosta na borda do quadro (8-conectado) |
+| Eixo de simetria | Testa ângulos de 0° a 180° e escolhe o eixo que deixa os dois lados mais iguais (todo avião visto de cima é espelhado no eixo da fuselagem) |
+| Perfil de largura | Mede a largura da silhueta em 24 fatias ao longo do eixo, nos dois sentidos (não se sabe de antemão qual ponta é o nariz) |
+| Comparação com modelos | Compara o perfil (e a razão envergadura/comprimento) com os 7 modelos e com **todas as misturas de dois modelos** (ex.: 70% caça + 30% delta) |
 
-E só classifica como `AVIAO` quando **todos** esses testes batem ao mesmo tempo:
+Modelos (`AircraftTemplates.h`): **Comercial** (jato de passageiros), **Caça**,
+**Delta** (Mirage), **Asa voadora** (B-2), **UCAV** (X-47B), **Hélice** (Cessna)
+e **Triângulo**. As misturas cobrem os intermediários, ex.: um caça de asa mais
+enflechada fica entre Caça e Delta.
 
-| Critério | Faixa aceita | O que verifica |
+Classifica como `AVIAO` quando **todos** estes critérios batem:
+
+| Critério | Limite | O que verifica |
 |---|---|---|
-| Proporção (aspecto) | 0.60 – 2.40 | Largura vs altura da caixa envolvente |
-| Preenchimento | 0.30 – 0.75 | Quanto da caixa está "pintado" (separa sólido de contorno vazado) |
-| Solidez | ≥ 0.65 | Área real ÷ área do casco convexo (mede reentrâncias, tipo as juntas das asas) |
-| Ângulo do nariz | 30° – 100° | Quão pontudo/rombudo é o topo da silhueta |
-| Topo estreito | ≤ 15% da largura máxima | O nariz não pode já começar largo |
-| Parte mais larga | na metade de baixo (≥ 55% da altura) | Asas atrás, não na frente |
-| Centro de massa | 50% – 80% da altura | Deslocado pra trás, não centralizado |
-| Simetria | assimetria ≤ 10% | Nariz e asas alinhados no eixo central |
-| Nº de vértices do polígono | 5 – 16 | Triângulo/quadrado puro tem 3-4; a silhueta de asa delta tem mais por causa dos recortes das asas |
+| Contraste | ≥ 40 (`AC_CONTRAST_MIN`) | Diferença entre as médias de papel e tinta |
+| Tamanho | 2% – 60% do quadro (`AC_AREA_MIN_FRAC`/`AC_AREA_MAX_FRAC`), lado maior ≥ 30 px (`AC_SIZE_MIN`) | Alvo nem longe nem perto demais |
+| Mancha isolada | não encosta na borda do quadro | O avião está inteiro no quadro |
+| Assimetria | ≤ 0.060 (`AC_ASYM_MAX`) | Os dois lados do eixo são espelhados |
+| Distância ao modelo | ≤ 0.130 (`AC_DIST_MAX`) | O perfil bate com algum modelo ou mistura |
 
-As faixas de aspecto (era até 2.10), solidez (era ≥ 0.72) e ângulo do nariz
-(era até 85°) foram alargadas depois de testar o B-2 Spirit real, que é bem
-mais largo e "rombudo" que as deltas mais compactas usadas na calibração
-inicial — cada alargamento foi revalidado contra as 337 formas de teste antes
-de ser aplicado (ver [Validação](#validação)).
+Os limites ficam no topo de `VisionSystem.cpp` (`AC_ASYM_MAX`, `AC_DIST_MAX`...).
+A distância ao modelo combina a diferença do perfil de largura (erro RMS) com a
+diferença de envergadura/comprimento, esta com peso `AC_ASPECT_WEIGHT` (0.15).
 
-> **Atenção:** as duas tabelas acima descrevem o detector antigo (ângulos e
-> polígono). O `VisionSystem.cpp` atual usa outro método: eixo de simetria +
-> perfil de largura comparado com 7 modelos (`AircraftTemplates.h`) e testa as
-> duas polaridades (silhueta escura e clara). Os motivos de rejeição e os limites
-> valem a tabela da próxima seção.
+### Validação
+
+Resultados reportados pelo autor do detector, em simulação no PC com o mesmo
+código C++ (imagens sintéticas com rotação aleatória de 0 a 360°, tamanhos
+variados, desfoque, ruído e vinheta):
+
+| Grupo | Resultado |
+|---|---|
+| Os 7 modelos e variações deles (envergadura ±27%, vértices deslocados) | Nenhum recusado pela forma. Distância máxima 0.092 (limite 0.130) |
+| Não-aviões: círculo, elipses, quadrado, retângulos, estrelas, cruz, letras T/L/H, coração, mão, hexágono, casinha, seta, manchas irregulares | 0/330 aceitos. O mais perto foi a cruz (+), com distância 0.147 |
+| Folha `alvos_7_tipos.pdf` fotografada sobre mesa escura, 5 distâncias/rotações por página | 35/35 reconhecidos, cada um com o modelo certo |
+
+Limites conhecidos do método:
+- Tipos fora dos modelos: jumbo e "diamante" (tipo F-22) quase sempre passam; Concorde, caça canard e bombardeiro às vezes; A-10 e planador não (asa reta muito diferente do Hélice).
+- Uma mancha borrada e simétrica pode ser aceita por acaso (em teste com ruído suavizado, uma passou com distância 0.123 contra o limite 0.130). Distância perto do limite merece desconfiança.
+- Só vista de cima, e com contraste entre avião e fundo (escuro sobre claro ou claro sobre escuro).
 
 ## Depuração pela Serial: motivo da rejeição
 
@@ -126,15 +138,16 @@ Uma distância próxima do limite (ex.: 0.12 contra 0.13) significa aceitação
 ## O que é herdado do VANTsat_TX_V3 
 
 - **`initVisionBuffers()`** — aloca o buffer `contour[]` na PSRAM.
-- **`perpendicularDistance()`** — usada pela simplificação de polígono
-  (`acRdp`/`acPolygon`) do detector de avião.
+- **`perpendicularDistance()`** — mantida sem alteração, mas o detector atual
+  não a usa mais.
 
 ## Módulos
 
 | Arquivo | Responsabilidade |
 |---|---|
 | `missao_secundaria_cubedesign.ino` | `setup()`/`loop()`: inicializa câmera, SD, PSRAM e WiFi; orquestra captura → detecção → broadcast → log |
-| `VisionSystem.h/.cpp` | Buffer de contorno herdado do VANTsat + `identifyAircraft()` (detecção de silhueta de aeronave) |
+| `VisionSystem.h/.cpp` | Buffer de contorno herdado do VANTsat + `identifyAircraft()` (detecção de silhueta de aeronave) + linha de depuração da Serial |
+| `AircraftTemplates.h` | Perfis de largura dos 7 modelos de aeronave |
 | `StorageHandler.h/.cpp` | Captura de frame, conversão para JPEG, pasta/contador de missão, gravação direta na pasta da sessão, log de ADS-B |
 | `NetworkManager.h/.cpp` | Access Point WiFi, DNS (captive portal simples), broadcast UDP do ADS-B, servidor TCP de fotos e servidor HTTP (painel web) |
 | `ADSBSimulator.h/.cpp` | Base fixa de 5 aeronaves fictícias e serialização do payload JSON |
@@ -198,7 +211,10 @@ O payload leva **só latitude e longitude** do ADS-B simulado (mais o índice/ta
 
 ## Painel web
 
-Acesse `http://192.168.4.1/` (conectado no AP) pra ver:
+Conectado no Wi-Fi do ESP (AP `AMARAL_I`), acesse
+`http://www.missao.maverick.com` (use `http://` e o `www.`; a rede não tem
+internet, então o navegador não deve trocar para `https://`). Se o nome não
+abrir, use o IP direto: `http://192.168.4.1/`. Lá você vê:
 
 1. **Último ADS-B enviado** — um painel no topo com o registro mais recente
    (callsign, ICAO24, lat/lon, altitude, velocidade, squawk), direto da
@@ -242,20 +258,21 @@ organizadas por data.
 - **`GET /download` sem validação de caminho:** o parâmetro `file` é usado
   diretamente para abrir arquivos no SD, sem restringir a um diretório — vale
   travar isso antes de expor a rede a mais gente.
-- **Precisa de silhueta escura sobre fundo claro:** fotos reais em voo (céu
-  de fundo, avião claro) não funcionam como alvo — só recorte físico ou
-  desenho de contraste alto, como as silhuetas em `~/Downloads/silhuetas_avioes_teste/`.
-- **B-2 no limite:** dos três aviões testados, o B-2 é o que passou puxando
-  três limites do classificador ao mesmo tempo (proporção, solidez, ângulo do
-  nariz) — funciona, mas com menos margem que X-45A/X-47B. Vale testar o
-  recorte físico com antecedência.
+- **Precisa de contraste entre avião e fundo:** escuro sobre claro ou claro
+  sobre escuro (as duas polaridades são testadas). Fundo com muita textura ou
+  avião da mesma cor do fundo não funciona.
+- **Só vista de cima:** o detector compara a silhueta em planta. Avião de lado
+  ou de frente não bate com os modelos.
+- **Asa reta muito diferente do Cessna** (A-10, planador) não passa.
+- **Falso positivo por acaso:** uma mancha borrada e simétrica pode ser aceita.
+  Confira a distância na linha `[VISAO]` da Serial (ver seção de depuração).
 
 ## Créditos
 
 Baseado no firmware **VANTsat_TX_V3** — Equipe UERJsats, Missão Atlas (LASC 2026).
 Desenvolvedores originais: Carlos Leal e Vitor Forny.
 
-**Detector de aeronaves (`VisionSystem.cpp` e `AircraftTemplates.h`): Asaf.**
+Detector de aeronaves (`VisionSystem.cpp` e `AircraftTemplates.h`): **Asaf Teixeira**.
 O reconhecimento por eixo de simetria e perfil de largura, a comparação com os
 7 modelos (Comercial, Caça, Delta, Asa voadora, UCAV, Hélice e Triângulo) e as
 misturas entre eles, o teste das duas polaridades (silhueta escura e clara) e as
@@ -264,6 +281,11 @@ ESP32-CAM AI-Thinker (que também inclui o painel `/live` e a folha de alvos
 `alvos_7_tipos.pdf`). Aqui o detector foi adaptado para a XIAO ESP32S3 Sense,
 sem o painel `/live`.
 
+Verificação de aeronave clandestina ou não (consulta `QRY` à tabela `autorizadas`
+no Orange Pi, usando a latitude/longitude do ADS-B enviado por esta missão): **katarynecunha28**.
+
 - https://github.com/uerjsats
 - https://github.com/Caduleal
 - https://github.com/vitorforny04
+- https://github.com/asafTeixeira
+- https://github.com/katarynecunha28
