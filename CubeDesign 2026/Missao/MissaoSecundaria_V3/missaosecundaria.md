@@ -255,6 +255,15 @@ organizadas por data.
 Baseado no firmware **VANTsat_TX_V3** — Equipe UERJsats, Missão Atlas (LASC 2026).
 Desenvolvedores originais: Carlos Leal e Vitor Forny.
 
+**Detector de aeronaves (`VisionSystem.cpp` e `AircraftTemplates.h`): Asaf.**
+O reconhecimento por eixo de simetria e perfil de largura, a comparação com os
+7 modelos (Comercial, Caça, Delta, Asa voadora, UCAV, Hélice e Triângulo) e as
+misturas entre eles, o teste das duas polaridades (silhueta escura e clara) e as
+mensagens de depuração pela Serial foram desenvolvidos por ele na versão para a
+ESP32-CAM AI-Thinker (que também inclui o painel `/live` e a folha de alvos
+`alvos_7_tipos.pdf`). Aqui o detector foi adaptado para a XIAO ESP32S3 Sense,
+sem o painel `/live`.
+
 - https://github.com/uerjsats
 - https://github.com/Caduleal
 - https://github.com/vitorforny04
