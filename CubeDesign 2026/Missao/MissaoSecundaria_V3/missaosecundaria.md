@@ -282,7 +282,7 @@ ESP32-CAM AI-Thinker (que também inclui o painel `/live` e a folha de alvos
 sem o painel `/live`.
 
 Verificação de aeronave clandestina ou não (consulta `QRY` à tabela `autorizadas`
-no Orange Pi, usando a latitude/longitude do ADS-B enviado por esta missão): **katarynecunha28**.
+no Orange Pi, usando a latitude/longitude do ADS-B enviado por esta missão): **Kataryne Cunha**.
 
 - https://github.com/uerjsats
 - https://github.com/Caduleal
