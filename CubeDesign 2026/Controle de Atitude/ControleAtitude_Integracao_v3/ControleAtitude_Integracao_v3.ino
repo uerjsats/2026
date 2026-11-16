@@ -165,6 +165,7 @@ const float curvaNormalLDR1[NUM_PONTOS_LDR] LDR_FLASH = {
 #define CHAVE_ANTENA_INTERVALO_MS 5
 
 SoftwareSerial controleSerial(OBC_RX_PIN, OBC_TX_PIN);  // RX D12 TX_CT5; TX D13 RX_CT5; 9600 baud
+SoftwareSerial linkSerial(OBC_RX_PIN, OBC_TX_PIN);  // RX D12 TX_CT5; TX D13 RX_CT5; 9600 baud
 double anguloOffset = 0;          // Ângulo adicional a ser adicionado após encontrar a luz
 bool luzEncontrada = false;       // Flag indicando se já encontrou a luz
 double anguloLuzEncontrada = 0;   // Ângulo onde a luz foi encontrada
@@ -427,10 +428,12 @@ void setup()
 {
   // Inicia comunicação |controleSerial
   controleSerial.begin(9600);
-Serial.begin(115200); // USB: tambem recebe comandos, independentemente do debug
+  Serial.begin(115200); // USB: tambem recebe comandos, independentemente do debug
   controleSerial.setTimeout(150);  // Evita bloqueios de 1 s em comandos malformados
   delay(500); // espera estabilizar
   while (controleSerial.available()) controleSerial.read(); // descarta lixo inicial
+
+  linkSerial.begin(9600);
 
   pinMode(pinoInterrupcao, INPUT);
 
@@ -593,6 +596,10 @@ void responder(const String &mensagem) {
   if (!digito) return;
   controleSerial.print(F("3:"));
   controleSerial.println(valor);
+  linkSerial.print(F("3:"));
+  linkSerial.println(valor);
+  Serial.print(F("3:"));
+  Serial.println(valor);
 }
 
 void pararAtuadores() {
@@ -797,9 +804,11 @@ void executarComando(String comando, bool origemUsb) {
 void loop() {
   static char bufferOBC[64] = {0};
   static char bufferUSB[64] = {0};
-  static byte nOBC = 0, nUSB = 0;
+  static char bufferBLE[64] = {0};
+  static byte nOBC = 0, nUSB = 0, nBLE = 0;
   lerLinha(controleSerial, bufferOBC, nOBC, false);
   lerLinha(Serial, bufferUSB, nUSB, true);
+  lerLinha(linkSerial, bufferBLE, nBLE, false);
   diagnosticarModo();
   switch (modoAtual) {
     case MODOPARADO: break;
