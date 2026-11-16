@@ -371,7 +371,7 @@ void setup()
 {
   // Inicia comunicação |controleSerial
   controleSerial.begin(9600);
-Serial.begin(115200); // USB: tambem recebe comandos, independentemente do debug
+  Serial.begin(115200); // USB: tambem recebe comandos, independentemente do debug
   controleSerial.setTimeout(150);  // Evita bloqueios de 1 s em comandos malformados
   delay(500); // espera estabilizar
   while (controleSerial.available()) controleSerial.read(); // descarta lixo inicial

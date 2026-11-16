@@ -18,7 +18,7 @@
 // por mais 1 s (TEMPO_EXTRA_ANTENA_MS) antes de parar.
 // AVISO: conferir eletricamente sentido do motor e mecanimos antes de energizar.
 //Inclusão de bibliotecas de pinos
-#include "pinosPlaca.h"
+#include "pinosGiga.h"
 #include <SoftwareSerial.h>
 #if defined(ARDUINO_ARCH_AVR)
   #include <avr/pgmspace.h>
@@ -435,6 +435,7 @@ void setup()
 
   linkSerial.begin(9600);
 
+  linkSerial.println("oi, eu sou o goku!");
   pinMode(pinoInterrupcao, INPUT);
 
   // Configuração do MPU
@@ -802,14 +803,28 @@ void executarComando(String comando, bool origemUsb) {
 }
 
 void loop() {
-  static char bufferOBC[64] = {0};
+  /*static char bufferOBC[64] = {0};
   static char bufferUSB[64] = {0};
   static char bufferBLE[64] = {0};
   static byte nOBC = 0, nUSB = 0, nBLE = 0;
   lerLinha(controleSerial, bufferOBC, nOBC, false);
   lerLinha(Serial, bufferUSB, nUSB, true);
-  lerLinha(linkSerial, bufferBLE, nBLE, false);
+  lerLinha(linkSerial, bufferBLE, nBLE, false);*/
+  String cmd = "";
+  if(linkSerial.available()){
+    cmd = linkSerial.readStringUntil('\n');
+    
+  }
+  else if(Serial.available()){
+    cmd = Serial.readStringUntil('\n');
+    
+  }
+  else if(controleSerial.available())
+  {
+    cmd = controleSerial.readStringUntil('\n');
+  }
   diagnosticarModo();
+  executarComando(cmd, true);
   switch (modoAtual) {
     case MODOPARADO: break;
     case MODOESTABILIZAR: estabilizar(); break;

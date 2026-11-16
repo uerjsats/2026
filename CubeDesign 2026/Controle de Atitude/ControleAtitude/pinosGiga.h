@@ -2,8 +2,8 @@
 #define PINOS_H_2026
 // Arduino Nano - mapeamento PROPOSTO: validar ligacoes reais do driver.
 // Roda de reacao: canal ativo (ambos PWM) e saidas auxiliares inativas.
-#define IN1 11
-#define IN2 9
+#define IN1 5
+#define IN2 6
 #define REACAO_IN3 10
 #define REACAO_IN4 4
 
@@ -11,7 +11,7 @@
 #define LDRAZUL A1
 
 // Painel (preservado da revisao anterior)
-#define PAINEL_IN1 5
+#define PAINEL_IN1 11
 #define PAINEL_IN2 7
 
 // Antena: pinos e chaves validados no teste isolado
