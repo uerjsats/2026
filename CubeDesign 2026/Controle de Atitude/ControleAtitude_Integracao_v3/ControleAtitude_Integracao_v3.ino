@@ -18,7 +18,7 @@
 // por mais 1 s (TEMPO_EXTRA_ANTENA_MS) antes de parar.
 // AVISO: conferir eletricamente sentido do motor e mecanimos antes de energizar.
 //Inclusão de bibliotecas de pinos
-#include "pinosGiga.h"
+#include "pinosPlaca.h"
 #include <SoftwareSerial.h>
 #if defined(ARDUINO_ARCH_AVR)
   #include <avr/pgmspace.h>
@@ -28,7 +28,9 @@
 // Explicit forward declarations: the Arduino IDE does not auto-generate a prototype
 // for functions with default arguments (avisar), so calls placed before the
 // definition fail with "'avisar' was not declared in this scope".
-void avisar(const __FlashStringHelper *mensagem, bool mandarRadio = true);
+void avisar(const String &mensagem, bool mandarRadio = false);
+// Overload for F("...") texts: stays in flash, does not use SRAM
+void avisar(const __FlashStringHelper *mensagem, bool mandarRadio = false);
 void pararAtuadores();
 void responder(const String &mensagem);
 const __FlashStringHelper *nomeModo(int modo);
@@ -58,7 +60,7 @@ float girar360();
 #define MODO_INICIAL MODOPARADO
 #define controleSerial_DEBUG_ENABLE 0  // Nao enviar debug livre ao mestre
 #define DEBUG_SERIAL_USB 1 // Porta USB do computador: comandos e diagnostico
-#define DEBUG_UART_OBC 1   // 1: envia 3:DBG:... para Heltec (requer encaminhamento pelo OBC)
+#define DEBUG_UART_OBC 0   // 1: envia 3:DBG:... para Heltec (requer encaminhamento pelo OBC)
 #define INTERVALO_ESTADO_MS 5000UL
 #define INTERVALO_RADIO_SHIFT_MS 2000UL
 #define INTERVALO_SHIFT_MS 500UL
@@ -165,7 +167,8 @@ const float curvaNormalLDR1[NUM_PONTOS_LDR] LDR_FLASH = {
 #define CHAVE_ANTENA_INTERVALO_MS 5
 
 SoftwareSerial controleSerial(OBC_RX_PIN, OBC_TX_PIN);  // RX D12 TX_CT5; TX D13 RX_CT5; 9600 baud
-SoftwareSerial linkSerial(OBC_RX_PIN, OBC_TX_PIN);  // RX D12 TX_CT5; TX D13 RX_CT5; 9600 baud
+// linkSerial removido: estava nos MESMOS pinos do controleSerial. No AVR so uma
+// SoftwareSerial escuta por vez, e a ultima a dar begin() "roubava" a recepcao.
 double anguloOffset = 0;          // Ângulo adicional a ser adicionado após encontrar a luz
 bool luzEncontrada = false;       // Flag indicando se já encontrou a luz
 double anguloLuzEncontrada = 0;   // Ângulo onde a luz foi encontrada
@@ -176,7 +179,7 @@ bool executandoOffset = false;    // Flag indicando se está executando o movime
 // ===========================================
 // PID
 double Kp_pos = 1.5;    // Reduzido para menos oscilação
-double Kd_pos = 0.3;
+double Kd_pos = 0.1;
 double Kd_vel = 0.5;
 
 // --- ESTADOS DO SISTEMA (Máquina de Estados) ---
@@ -385,7 +388,7 @@ bool moverAntenaAteChave(bool abrir, int pinoChave) {
   }
 
   if (chaveOk) {
-    avisar(F("ANTENA: chave acionada; girando +1 s"));
+    avisar(F("ANTENA: chave acionada; girando +1 s"), false);
     // Motor CONTINUA ligado (nao mexe nos pinos) pelo tempo extra
     delay(TEMPO_EXTRA_ANTENA_MS);
   }
@@ -426,16 +429,15 @@ double lerGyroZ()
 // Função de inicialização
 void setup() 
 {
-  // Inicia comunicação |controleSerial
+  // Inicia comunicação |//controleSerial
   controleSerial.begin(9600);
+  controleSerial.listen();
   Serial.begin(115200); // USB: tambem recebe comandos, independentemente do debug
-  controleSerial.setTimeout(150);  // Evita bloqueios de 1 s em comandos malformados
-  delay(500); // espera estabilizar
+  /*//controleSerial.setTimeout(150);  // Evita bloqueios de 1 s em comandos malformados
+  delay(500); // espera estabilizar*/
   while (controleSerial.available()) controleSerial.read(); // descarta lixo inicial
 
-  linkSerial.begin(9600);
-
-  linkSerial.println("oi, eu sou o goku!");
+  //linkSerial.println("oi, eu sou o goku!");
   pinMode(pinoInterrupcao, INPUT);
 
   // Configuração do MPU
@@ -488,7 +490,7 @@ void setup()
   digitalWrite(ANTIN1, LOW);
   digitalWrite(ANTIN2, LOW);
 
-  controleSerial.println(F("3:0"));  // CA pronto; prefixo do subsistema 3
+  ////controleSerial.println(F("3:0"));  // CA pronto; prefixo do subsistema 3
   Serial.println(F("[ADCS] PRONTO: USB=115200, OBC=9600; comandos em ambas as portas"));
   Serial.println(F("[ADCS] LDR: envie 5 (0 grau), 5 (fundo), 2 (angulo continuo)"));
   Serial.print(F("[ADCS] MODO INICIAL: "));
@@ -504,17 +506,22 @@ void setup()
 // ===== DIAGNOSTICOS SEPARADOS DA TELEMETRIA NUMERICA =====
 // USB: [DBG] mensagem, e UART Heltec: 3:DBG:mensagem.
 // Importante: o OBC precisa ENCAMINHAR 3:DBG: pelo LoRa; nao eh um angulo.
-void avisar(const __FlashStringHelper *mensagem, bool mandarRadio) { // default value in the forward declaration
-#if DEBUG_SERIAL_USB
+void avisar(const String &mensagem, bool mandarRadio) { // default value in the forward declaration
   Serial.print(F("[DBG] "));
   Serial.println(mensagem);
-#endif
-#if DEBUG_UART_OBC
-  if (mandarRadio) {
-    controleSerial.print(F("3:DBG:"));
+  if (mandarRadio) {               // so vai para o radio quando pedido
+    controleSerial.print(F("3:"));
     controleSerial.println(mensagem);
   }
-#endif
+}
+
+void avisar(const __FlashStringHelper *mensagem, bool mandarRadio) { // F() version: text read straight from flash
+  Serial.print(F("[DBG] "));
+  Serial.println(mensagem);
+  if (mandarRadio) {               // so vai para o radio quando pedido
+    controleSerial.print(F("3:"));
+    controleSerial.println(mensagem);
+  }
 }
 
 // Usar tipo fundamental evita erro do pre-processador de prototipos da Arduino IDE.
@@ -540,15 +547,15 @@ void diagnosticarModo() {
     bool alterou = ultimoModo != (int)modoAtual;
     ultimoModo = (int)modoAtual;
     ultimoHeartbeat = agora;
-    if (alterou) avisar(F("MODO: transicao de estado"));
+    if (alterou) avisar(F("MODO: transicao de estado"), false);
 #if DEBUG_SERIAL_USB
     Serial.print(F("[ESTADO] antes de executar: "));
     Serial.println(nomeModo(modoAtual));
 #endif
 #if DEBUG_UART_OBC
     // Somente na transicao ou a cada 5 s, nunca a cada 10 ms do controle.
-    controleSerial.print(F("3:DBG:ESTADO="));
-    controleSerial.println(nomeModo(modoAtual));
+    //controleSerial.print(F("3:DBG:ESTADO="));
+    //controleSerial.println(nomeModo(modoAtual));
 #endif
   }
 }
@@ -570,7 +577,7 @@ void lerLinha(Stream &porta, char *buffer, byte &n, bool origemUsb) {
       }
     } else if (c >= 32 && c <= 126) {
       if (n < 63) buffer[n++] = c;
-      else { n = 0; avisar(F("ERRO: linha de comando muito longa")); }
+      else { n = 0; avisar(F("ERRO: linha de comando muito longa"), false); }
     }
   }
 }
@@ -597,10 +604,6 @@ void responder(const String &mensagem) {
   if (!digito) return;
   controleSerial.print(F("3:"));
   controleSerial.println(valor);
-  linkSerial.print(F("3:"));
-  linkSerial.println(valor);
-  Serial.print(F("3:"));
-  Serial.println(valor);
 }
 
 void pararAtuadores() {
@@ -619,14 +622,14 @@ void pararAtuadores() {
 
 // Mantem o comando de calibracao 5 em duas etapas; agora grava cada LDR individualmente.
 void calibrarLDRFrontal() {
-  avisar(F("CAL: iniciando 50 leituras da luz em 0 graus"));
+  avisar(F("CAL: iniciando 50 leituras da luz em 0 graus"), false);
   unsigned long soma0=0, soma1=0;
   for (int i=0; i<50; i++) {
     soma0 += analogRead(LDRVERMELHO);
     soma1 += analogRead(LDRAZUL);
     delay(10);
   }
-  avisar(F("CAL: 50 leituras de referencia concluidas"));
+  avisar(F("CAL: 50 leituras de referencia concluidas"), false);
   referenciaZeroLDR0 = soma0 / 50.0f;
   referenciaZeroLDR1 = soma1 / 50.0f;
   luzMaxima = (referenciaZeroLDR0 + referenciaZeroLDR1) / 2.0;
@@ -636,24 +639,25 @@ void calibrarLDRFrontal() {
   Serial.print(F("[CAL_ZERO] A0=")); Serial.print(referenciaZeroLDR0, 2);
   Serial.print(F(" A1=")); Serial.println(referenciaZeroLDR1, 2);
 #endif
-#if DEBUG_UART_OBC
-  controleSerial.print(F("3:DBG:ZERO A0=")); controleSerial.print(referenciaZeroLDR0, 1);
-  controleSerial.print(F(";A1=")); controleSerial.println(referenciaZeroLDR1, 1);
-#endif
+/*#if DEBUG_UART_OBC
+  //controleSerial.print(F("3:DBG:ZERO A0=")); //controleSerial.print(referenciaZeroLDR0, 1);
+  //controleSerial.print(F(";A1=")); //controleSerial.println(referenciaZeroLDR1, 1);
+#endif*/
   avisar(referenciaZeroCalibrada ? F("CAL: zero salvo; apague a fonte e envie 5")
-                               : F("CAL: ERRO referencia zero invalida"));
-  responder(String(F("LDR_0G=")) + String(luzMaxima, 1));
+                               : F("CAL: ERRO referencia zero invalida"), false);
+  //avisar(String(F("LDR_0G=")) + String(luzMaxima, 1), false);
+  avisar(String(F("LDR_0G=")) + String(luzMaxima, 1), false);
 }
 
 void calibrarLDRAmbiente() {
-  avisar(F("CAL: iniciando 50 leituras da luz ambiente"));
+  avisar(F("CAL: iniciando 50 leituras da luz ambiente"), false);
   unsigned long soma0=0, soma1=0;
   for (int i=0; i<50; i++) {
     soma0 += analogRead(LDRVERMELHO);
     soma1 += analogRead(LDRAZUL);
     delay(10);
   }
-  avisar(F("CAL: 50 leituras de ambiente concluidas"));
+  avisar(F("CAL: 50 leituras de ambiente concluidas"), false);
   ambienteLDR0 = soma0 / 50.0f;
   ambienteLDR1 = soma1 / 50.0f;
   luzMinima = (ambienteLDR0 + ambienteLDR1) / 2.0;
@@ -664,12 +668,12 @@ void calibrarLDRAmbiente() {
   Serial.print(F(" A1=")); Serial.println(ambienteLDR1, 2);
 #endif
 #if DEBUG_UART_OBC
-  controleSerial.print(F("3:DBG:FUNDO A0=")); controleSerial.print(ambienteLDR0, 1);
-  controleSerial.print(F(";A1=")); controleSerial.println(ambienteLDR1, 1);
+  //controleSerial.print(F("3:DBG:FUNDO A0=")); //controleSerial.print(ambienteLDR0, 1);
+  //controleSerial.print(F(";A1=")); //controleSerial.println(ambienteLDR1, 1);
 #endif
   avisar(luzCalibrada ? F("CAL: PRONTO; envie 2 com a fonte acesa")
-                    : F("CAL: ERRO falta referencia de zero"));
-  responder(String(F("LDR_AMBIENTE=")) + String(luzMinima, 1));
+                    : F("CAL: ERRO falta referencia de zero"), false);
+  avisar(String(F("LDR_AMBIENTE=")) + String(luzMinima, 1), false);
 }
 
 // Funcao principal: continua executando os modos de controle existentes.
@@ -681,150 +685,139 @@ void executarComando(String comando, bool origemUsb) {
   Serial.print(F("] comando=")); Serial.println(comando);
 #endif
 #if DEBUG_UART_OBC
-  controleSerial.print(F("3:DBG:RX_"));
-  controleSerial.print(origemUsb ? F("USB=") : F("OBC="));
-  controleSerial.println(comando);
+  //controleSerial.print(F("3:DBG:RX_"));
+  //controleSerial.print(origemUsb ? F("USB=") : F("OBC="));
+  //controleSerial.println(comando);
 #endif
 
   // Rotas idênticas para USB e OBC. Os IDs permanecem os da versao original.
   if (comando == "1") {
-    avisar(F("CMD1: antes de iniciar estabilizacao"));
+    avisar(F("CMD1: antes de iniciar estabilizacao"), false);
     equilibrado = false;
     modoAtual = MODOESTABILIZAR;
-    responder(F("Estabilizar"));
+    avisar(F("Estabilizar"), true);
   }
   else if (comando == "2") {
-    avisar(F("CMD2: preparando medicao continua de angulo"));
+    avisar(F("CMD2: preparando medicao continua de angulo"), false);
     pararAtuadores();
     if (!luzCalibrada) {
-      avisar(F("CMD2 BLOQUEADO: faca 5 (zero) e 5 (fundo)"));
-      responder(F("ERRO_LDR_nao_calibrado_envie_5_duas_vezes"));
+      avisar(F("CMD2 BLOQUEADO: faca 5 (zero) e 5 (fundo)"), false);
+      avisar(F("ERRO_LDR_nao_calibrado_envie_5_duas_vezes"), true);
     } else {
       modoAtual = MODOMEDIRSHIFT;
-      avisar(F("CMD2: estado SHIFT ativo ate proximo comando"));
-      responder(F("Determinar Azimuth"));
+      avisar(F("CMD2: estado SHIFT ativo ate proximo comando"), false);
+      avisar(F("Determinar Azimuth"), true);
     }
   }
   else if (comando == "3") {
-    avisar(F("CMD3: consultando parametros PID"));
-    responder(String(F("PID=")) + String(Kp_pos, 3) + "," + String(Kd_pos, 3) + "," + String(Kd_vel, 3));
+    avisar(F("CMD3: consultando parametros PID"), false);
+    avisar(String(F("PID=")) + String(Kp_pos, 3) + "," + String(Kd_pos, 3) + "," + String(Kd_vel, 3), true);
   }
   else if (comando.startsWith("3 ")) {
-    avisar(F("CMD3: atualizando parametros PID"));
+    avisar(F("CMD3: atualizando parametros PID"), false);
     processarValoresPID(comando.substring(2));
   }
   else if (comando == "4") {
-    avisar(F("CMD4: parando atuadores e iniciando MPU"));
+    avisar(F("CMD4: parando atuadores e iniciando MPU"), false);
     pararAtuadores();
-    responder(F("Calibrando MPU"));
+    avisar(F("Calibrando MPU"), false);
     if (calibrarGyroComRelato()) {
-      avisar(F("CMD4: calibracao MPU finalizada"));
-      responder(F("MPU_CALIBRADO"));
+      avisar(F("CMD4: calibracao MPU finalizada"), false);
+      avisar(F("MPU_CALIBRADO"), true);
     } else {
-      avisar(F("CMD4: REJEITADA, placa em movimento; bias anterior mantido"));
-      responder(F("ERRO_MPU_em_movimento"));
+      avisar(F("CMD4: REJEITADA, placa em movimento; bias anterior mantido"), false);
+      avisar(F("ERRO_MPU_em_movimento"), true);
     }
   }
   else if (comando == "5") {
-    avisar(F("CMD5: parando atuadores antes da calibracao"));
+    avisar(F("CMD5: parando atuadores antes da calibracao"), false);
     pararAtuadores();
     if (!referenciaZeroCalibrada || fundoCalibrado) {
-      avisar(F("CMD5: etapa 1/2; luz acesa em 0 graus"));
+      avisar(F("CMD5: etapa 1/2; luz acesa em 0 graus"), false);
       fundoCalibrado = false;
       luzCalibrada = false;
       calibrarLDRFrontal();
-      responder(F("LDR:apague_a_lampada_e_envie_5_novamente"));
+      avisar(F("LDR:apague_a_lampada_e_envie_5_novamente"), true);
     } else {
-      avisar(F("CMD5: etapa 2/2; fonte apagada, ambiente"));
+      avisar(F("CMD5: etapa 2/2; fonte apagada, ambiente"), false);
       calibrarLDRAmbiente();
-      responder(F("LDR_CALIBRADO"));
+      avisar(F("LDR_CALIBRADO"), true);
     }
   }
   else if (comando == "5:AMBIENTE") {
-    avisar(F("CMD5: calibracao explicita do ambiente"));
+    avisar(F("CMD5: calibracao explicita do ambiente"), false);
     pararAtuadores();
     calibrarLDRAmbiente();
+    avisar(F("LDR_AMBIENTE_CALIBRADO"), true);
   }
   else if (comando == "6") {
-    avisar(F("CMD6: iniciando abertura do painel"));
+    avisar(F("CMD6: iniciando abertura do painel"), false);
     pararAtuadores();
-    responder(F("Abrindo Painel Solar"));
+    avisar(F("Abrindo Painel Solar"), false);
     digitalWrite(PAINEL_IN2, LOW);
     digitalWrite(PAINEL_IN1, HIGH);
     delay(TEMPO_ACIONAMENTO_PAINEL);
-    avisar(F("CMD6: desligando painel apos tempo"));
+    avisar(F("CMD6: desligando painel apos tempo"), false);
     pararAtuadores();
-    responder(F("Painel_Abertura_Finalizada"));
+    avisar(F("Painel_Abertura_Finalizada"), true);
   }
   else if (comando == "7") {
-    avisar(F("CMD7: fechamento de painel nao implementado"));
-    responder(F("Fechar Painel Solar_NAO_IMPLEMENTADO"));
+    avisar(F("CMD7: fechamento de painel nao implementado"), false);
+    avisar(F("Fechar Painel Solar_NAO_IMPLEMENTADO"), true);
   }
   else if (comando == "8") {
     // ABRIR ANTENA: gira ate SWANT1 acionar, +1 s, para.
-    avisar(F("CMD8: iniciando abertura da antena"));
+    avisar(F("CMD8: iniciando abertura da antena"), false);
     pararAtuadores();
-    responder(F("Abrindo Antena"));
-    avisar(F("CMD8: girando ate fim de curso (+1 s)"));
+    avisar(F("Abrindo Antena"), false);
+    avisar(F("CMD8: girando ate fim de curso (+1 s)"), false);
     if (moverAntenaAteChave(true, SWANT1)) {
-      avisar(F("CMD8: antena aberta, motor desligado"));
-      responder(F("Antena_Aberta"));
+      avisar(F("CMD8: antena aberta, motor desligado"), false);
+      avisar(F("Antena_Aberta"), true);
     } else {
-      avisar(F("CMD8: TIMEOUT fim de curso abertura"));
-      responder(F("ERRO_Chave_Abertura_Antena"));
+      avisar(F("CMD8: TIMEOUT fim de curso abertura"), false);
+      avisar(F("ERRO_Chave_Abertura_Antena"), true);
     }
   }
   else if (comando == "9") {
     // FECHAR ANTENA: gira ate SWANT2 acionar, +1 s, para.
-    avisar(F("CMD9: iniciando fechamento da antena"));
+    avisar(F("CMD9: iniciando fechamento da antena"), false);
     pararAtuadores();
-    responder(F("Fechando Antena"));
-    avisar(F("CMD9: girando ate fim de curso (+1 s)"));
+    avisar(F("Fechando Antena"), false);
+    avisar(F("CMD9: girando ate fim de curso (+1 s)"), false);
     if (moverAntenaAteChave(false, SWANT2)) {
-      avisar(F("CMD9: antena fechada, motor desligado"));
-      responder(F("Antena_Fechada"));
+      avisar(F("CMD9: antena fechada, motor desligado"), false);
+      avisar(F("Antena_Fechada"), true);
     } else {
-      avisar(F("CMD9: TIMEOUT fim de curso fechamento"));
-      responder(F("ERRO_Chave_Fechamento_Antena"));
+      avisar(F("CMD9: TIMEOUT fim de curso fechamento"), false);
+      avisar(F("ERRO_Chave_Fechamento_Antena"), true);
     }
   }
   else if (comando == "10" || comando == "11") {
-    avisar(F("EMERGENCIA: parando todos os atuadores"));
+    avisar(F("EMERGENCIA: parando todos os atuadores"), false);
     pararAtuadores();
-    responder(F("EMERGENCIA_Atuadores_Desligados"));
+    avisar(F("EMERGENCIA_Atuadores_Desligados"), true);
   }
   else if (comando == "12") {
-    avisar(F("CMD12: reservado EPS, nenhuma acao"), false);
+    avisar(F("CMD12: reservado EPS, nenhuma acao"), true);
   }
   else {
-    avisar(F("CMD INVALIDO: ignorado"));
-    responder(F("ERRO_Comando_Invalido"));
+    avisar(F("CMD INVALIDO: ignorado"), false);
+    avisar(F("ERRO_Comando_Invalido"), true);
   }
 }
 
 void loop() {
-  /*static char bufferOBC[64] = {0};
+  // Leitura nao bloqueante: o comando so executa ao chegar '\n' ou '\r'.
+  // Linha vazia (nada recebido) NAO gera "comando invalido".
+  static char bufferOBC[64] = {0};
   static char bufferUSB[64] = {0};
-  static char bufferBLE[64] = {0};
-  static byte nOBC = 0, nUSB = 0, nBLE = 0;
+  static byte nOBC = 0, nUSB = 0;
   lerLinha(controleSerial, bufferOBC, nOBC, false);
   lerLinha(Serial, bufferUSB, nUSB, true);
-  lerLinha(linkSerial, bufferBLE, nBLE, false);*/
-  String cmd = "";
-  if(linkSerial.available()){
-    cmd = linkSerial.readStringUntil('\n');
-    
-  }
-  else if(Serial.available()){
-    cmd = Serial.readStringUntil('\n');
-    
-  }
-  else if(controleSerial.available())
-  {
-    cmd = controleSerial.readStringUntil('\n');
-  }
+
   diagnosticarModo();
-  executarComando(cmd, true);
+
   switch (modoAtual) {
     case MODOPARADO: break;
     case MODOESTABILIZAR: estabilizar(); break;
@@ -841,7 +834,7 @@ void defineVelocidade(double velocidadeAlvo)
   // Limite mínimo de PWM para que o motor comece a girar
   int pwmMin = 20;
   // Limite máximo de PWM (o motor não precisa de 255 para máxima performance aqui)
-  int pwmMax = 255; //
+  int pwmMax = 105; //
 
   // Variável para armazenar o valor de PWM calculado
   int valorPwm;
@@ -1015,7 +1008,7 @@ void estabilizar()
     static bool avisouSaturacao = false;
     bool saturada = rodaNoTeto && fabs(mediaMovel) > zonaMorta;
     if (saturada && !avisouSaturacao) {
-      avisar(F("RODA SATURADA: no teto com satelite ainda girando"));
+      avisar(F("RODA SATURADA: no teto com satelite ainda girando"), false);
       avisouSaturacao = true;
     } else if (!rodaNoTeto) {
       avisouSaturacao = false;
@@ -1041,7 +1034,7 @@ float girar360() {
   const unsigned long tempoMaximo = 30000;
 
   if (controleSerial_DEBUG_ENABLE) {
-    responder(F("Iniciando_busca_360"));
+    avisar(F("Iniciando_busca_360"), false);
   }
 
   defineVelocidade(80);
@@ -1088,9 +1081,9 @@ float girar360() {
   delay(300);
 
   if (controleSerial_DEBUG_ENABLE) {
-    responder(F("Varredura_completa"));
-    responder(String(F("Melhor_angulo=")) + String(anguloMaisClaro));
-    responder(String(F("Maior_luz=")) + String(maiorLuz));
+    avisar(F("Varredura_completa"), false);
+    avisar(String(F("Melhor_angulo=")) + String(anguloMaisClaro), false);
+    avisar(String(F("Maior_luz=")) + String(maiorLuz), false);
   }
   modoAtual = MODOPARADO;
   return anguloMaisClaro;
@@ -1130,9 +1123,9 @@ bool calibrarGyroComRelato() {
   Serial.println(ok ? F(" ACEITA") : F(" REJEITADA"));
 #endif
 #if DEBUG_UART_OBC
-  controleSerial.print(F("3:DBG:GYRO B=")); controleSerial.print(gyroCalMediaDps, 3);
-  controleSerial.print(F(";S=")); controleSerial.print(gyroCalDesvioDps, 3);
-  controleSerial.println(ok ? F(";OK") : F(";REJ"));
+  //controleSerial.print(F("3:DBG:GYRO B=")); //controleSerial.print(gyroCalMediaDps, 3);
+  //controleSerial.print(F(";S=")); //controleSerial.print(gyroCalDesvioDps, 3);
+  //controleSerial.println(ok ? F(";OK") : F(";REJ"));
 #endif
   return ok;
 }
@@ -1241,13 +1234,13 @@ void orientarLuz()
 // ===========================================
 void processarValoresPID(String valores) {
   // Divide a string pelos espaços
-  responder(F("PID_recebido"));
+  avisar(F("PID_recebido"), false);
   int primeiroEspaco = valores.indexOf(' ');
   int segundoEspaco = valores.indexOf(' ', primeiroEspaco + 1);
 
   if (primeiroEspaco == -1 || segundoEspaco == -1) {
-    responder(F("ERRO_PID_formato_KP_KD_KV"));
-    responder(F("Exemplo:3 2.0 0.5 0.8"));
+    avisar(F("ERRO_PID_formato_KP_KD_KV"), true);
+    avisar(F("Exemplo:3 2.0 0.5 0.8"), false);
     return;
   }
 
@@ -1267,17 +1260,17 @@ void processarValoresPID(String valores) {
   bool valoresValidos = true;
 
   if (novoKp <= 0 || novoKp > 10.0) {
-    responder(F("ERRO_PID_Kp_fora_faixa"));
+    avisar(F("ERRO_PID_Kp_fora_faixa"), false);
     valoresValidos = false;
   }
 
   if (novoKd < 0 || novoKd > 5.0) {
-    responder(F("ERRO_PID_Kd_fora_faixa"));
+    avisar(F("ERRO_PID_Kd_fora_faixa"), false);
     valoresValidos = false;
   }
 
   if (novoKv < 0 || novoKv > 5.0) {
-    responder(F("ERRO_PID_Kv_fora_faixa"));
+    avisar(F("ERRO_PID_Kv_fora_faixa"), false);
     valoresValidos = false;
   }
 
@@ -1286,12 +1279,12 @@ void processarValoresPID(String valores) {
     Kd_pos = novoKd;
     Kd_vel = novoKv;
 
-    responder(F("PID_ATUALIZADO"));
-    responder(String(F("Kp_pos=")) + String(Kp_pos, 3));
-    responder(String(F("Kd_pos=")) + String(Kd_pos, 3));
-    responder(String(F("Kd_vel=")) + String(Kd_vel, 3));
+    avisar(F("PID_ATUALIZADO"), true);
+    avisar(String(F("Kp_pos=")) + String(Kp_pos, 3), false);
+    avisar(String(F("Kd_pos=")) + String(Kd_pos, 3), false);
+    avisar(String(F("Kd_vel=")) + String(Kd_vel, 3), false);
   } else {
-    responder(F("ERRO_PID_nao_alterado"));
+    avisar(F("ERRO_PID_nao_alterado"), true);
   }
 }
 
@@ -1360,13 +1353,13 @@ void medirShiftLuz() {
   const bool radioDetalhado = agora - ultimoRadioDetalhado >= INTERVALO_RADIO_SHIFT_MS;
   if (radioDetalhado) ultimoRadioDetalhado = agora;
 
-  avisar(F("SHIFT [1]: iniciando ciclo de medicao"), radioDetalhado);
-  avisar(F("SHIFT [2]: verificando calibracao"), radioDetalhado);
+  avisar(F("SHIFT [1]: iniciando ciclo de medicao"), false);
+  avisar(F("SHIFT [2]: verificando calibracao"), false);
   if (!luzCalibrada || referenciaZeroLDR0 <= 0.0f || referenciaZeroLDR1 <= 0.0f) {
-    avisar(F("SHIFT BLOQUEADO: falta 5+5 ou zero invalido"), radioDetalhado);
+    avisar(F("SHIFT BLOQUEADO: falta 5+5 ou zero invalido"), false);
     return;
   }
-  avisar(F("SHIFT [3]: adquirindo 12 pares de LDR"), radioDetalhado);
+  avisar(F("SHIFT [3]: adquirindo 12 pares de LDR"), false);
   unsigned long soma0=0, soma1=0;
   for (byte i=0; i<12; i++) {
     soma0 += analogRead(LDRVERMELHO);
@@ -1382,16 +1375,16 @@ void medirShiftLuz() {
   Serial.print(F(" r0=")); Serial.print(r0, 3);
   Serial.print(F(" r1=")); Serial.println(r1, 3);
 #endif
-  avisar(F("SHIFT [4]: verificando iluminacao"), radioDetalhado);
+  avisar(F("SHIFT [4]: verificando iluminacao"), false);
   if (l0 <= ambienteLDR0+10.0f && l1 <= ambienteLDR1+10.0f) {
-    avisar(F("SHIFT REJEITADO: luz insuficiente"), radioDetalhado);
+    avisar(F("SHIFT REJEITADO: luz insuficiente"), false);
     return;
   }
-  avisar(F("SHIFT [5]: comparando com as curvas"), radioDetalhado);
-  avisar(F("SHIFT [6]: estimando angulo"), radioDetalhado);
+  avisar(F("SHIFT [5]: comparando com as curvas"), false);
+  avisar(F("SHIFT [6]: estimando angulo"), false);
   float residual;
   const float anguloShift = estimarAnguloPelasCurvas(l0,l1,residual);
-  avisar(F("SHIFT [7]: estimativa calculada"), radioDetalhado);
+  avisar(F("SHIFT [7]: estimativa calculada"), false);
   const bool valido = residual <= MAX_RESIDUAL_LDR;
 #if DEBUG_SERIAL_USB
   Serial.print(F("[SHIFT] angulo_candidato=")); Serial.print(anguloShift, 2);
@@ -1403,16 +1396,21 @@ void medirShiftLuz() {
   // Resultado candidato e erro tambem aparecem no radio a cada ~2 s,
   // mesmo quando a estimativa foi rejeitada; NAO eh um angulo valido.
   if (radioDetalhado) {
-    controleSerial.print(F("3:DBG:ANG=")); controleSerial.print(anguloShift, 1);
-    controleSerial.print(F(";R=")); controleSerial.print(residual, 3);
-    controleSerial.println(valido ? F(";OK") : F(";REJ"));
+    //controleSerial.print(F("3:DBG:ANG=")); //controleSerial.print(anguloShift, 1);
+    //controleSerial.print(F(";R=")); //controleSerial.print(residual, 3);
+    //controleSerial.println(valido ? F(";OK") : F(";REJ"));
   }
 #endif
   if (!valido) {
-    avisar(F("SHIFT [8]: rejeitado por residual; sem 3:angulo"), radioDetalhado);
-    return;
+    avisar(F("SHIFT: residual alto, enviando angulo de teste"),
+          false);
+  } else {
+    avisar(F("SHIFT: residual aceitavel, enviando angulo"),
+          false);
   }
-  avisar(F("SHIFT [8]: angulo aceito; enviando 3:angulo"), radioDetalhado);
-  responder(String(anguloShift, 1)); // 3:<angulo> a cada ~500 ms enquanto MODO MEDIRSHIFT
-  avisar(F("SHIFT [9]: responder retornou"), radioDetalhado);
+
+  // Envia o angulo mesmo com residual alto
+  responder(String(anguloShift, 1));
+
+  avisar(F("SHIFT: envio concluido"), false);
 }
